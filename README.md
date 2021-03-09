@@ -4,8 +4,8 @@ Spring 21
 Virtualenv 
 ```bash
 module load python/3.6
-virtualenv py36
-source py36/bin/activate
+virtualenv env
+source env/bin/activate
 pip install jupyter
 echo -e '#!/bin/bash\nunset XDG_RUNTIME_DIR\njupyter notebook --ip $(hostname -f) --no-browser' > $VIRTUAL_ENV/bin/notebook.sh
 chmod u+x $VIRTUAL_ENV/bin/notebook.sh
