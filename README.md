@@ -12,10 +12,11 @@ chmod u+x $VIRTUAL_ENV/bin/notebook.sh
 
 
 pip install jupyterlmod
-jupyter nbextension install --py jupyterlmod --sys-prefix
+jupyter nbextension install --py jupyterlmod --sys-prefix #dont work
 jupyter nbextension enable --py jupyterlmod --sys-prefix
 jupyter serverextension enable --py jupyterlmod --sys-prefix
 
 salloc --time=1:0:0 --ntasks=1 --cpus-per-task=2 --mem-per-cpu=1024M --account=def-ester srun $VIRTUAL_ENV/bin/notebook.sh
+
 ```
 
