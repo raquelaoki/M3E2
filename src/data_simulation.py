@@ -14,12 +14,13 @@ class gwas_simulated_data(object):
     #7.2 GWAS simulated study // sparse effects setting
     #https://github.com/raquelaoki/ParKCa/blob/master/src/datapreprocessing.py    
     
-    def __init__(self, n_units = 1000, n_causes = 10, seed = 4, pca_path = 'data//tgp_pca2.txt'):
+    def __init__(self, n_units = 1000, n_causes = 10, seed = 4, pca_path = 'data//tgp_pca2.txt', prop_tc = 0.1):
         self.n_units = n_units
         self.n_causes = n_causes
         self.seed = seed
         self.pca_path = pca_path
         self.S = np.loadtxt(self.pca_path, delimiter=',')
+        self.prop_tc = prop_tc
     
     def generate_samples(self):
         '''
@@ -31,7 +32,7 @@ class gwas_simulated_data(object):
         Due running time, we save the files and load from the pca.txt file
         '''
         G0, lambdas = self.sim_genes_TGP(D = 3)
-        G1, tc, y01 = self.sim_dataset(G0,lambdas)
+        G1, tc, y01 = self.sim_dataset(G0,lambdas,self.prop_tc )
         G = self.add_colnames(G1,tc)
         del G0,G1
         return y01, tc, G
@@ -63,7 +64,7 @@ class gwas_simulated_data(object):
         #sG = sparse.csr_matrix(G)
         return G, lambdas
 
-    def sim_dataset(self, G0,lambdas):
+    def sim_dataset(self, G0,lambdas, prop_tc):
         '''
         calculate the target Y based on the simulated dataset
         input:
@@ -76,8 +77,8 @@ class gwas_simulated_data(object):
         y01: binary target
         '''
         np.random.seed(self.seed)
-        tc_ = npr.normal(loc = 0 , scale=0.5*0.5, size=int(self.n_causes*0.1))
-        tc = np.hstack((np.repeat(0.0,self.n_causes-int(self.n_causes*0.1)),tc_))    #True causes
+        tc_ = npr.normal(loc = 0 , scale=0.5*0.5, size=int(self.n_causes*prop_tc))
+        tc = np.hstack((np.repeat(0.0,self.n_causes-int(self.n_causes*prop_tc)),tc_))    #True causes
         #tc.shuffle(tc)
 
         tau =  stats.invgamma(3,1).rvs(3, random_state = 99)
@@ -224,16 +225,16 @@ class copula_simulated_data(object):
     
     def print_equation(self):
         eq = 'g(T)='
-        t = ['T'+str(i) for i in range(sim_data.k)]
-        t[sim_data.ind] = t[sim_data.ind]+'I('+t[sim_data.ind]+'>0)+0.7'+t[sim_data.ind] +'I('+t[sim_data.ind]+'<0)'
+        t = ['T'+str(i) for i in range(self.k)]
+        t[self.ind] = t[self.ind]+'I('+t[self.ind]+'>0)+0.7'+t[self.ind] +'I('+t[self.ind]+'<0)'
 
-        if sim_data.k < len(sim_data.coef_true):
-            nonlinear = len(sim_data.coef_true) - sim_data.k
+        if self.k < len(self.coef_true):
+            nonlinear = len(self.coef_true) - self.k
             for item in range(nonlinear):
                 t.append(t[item]+'*'+t[item]) 
 
         for i, item in enumerate(t): 
-            if sim_data.coef_true[i]>0:
+            if self.coef_true[i]>0:
                 coef = '+'+str(round(self.coef_true[i]))
             else:
                 coef = str(round(self.coef_true[i]))
