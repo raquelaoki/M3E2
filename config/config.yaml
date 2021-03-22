@@ -1,0 +1,10 @@
+#Parameters
+parameters:
+    data: 'gwas' #'income','marital','education',
+    model: 'm3e2' #MMoE or MMoEEx (MAML)
+    testing: '-' #description
+    batch_size: 512
+    max_epochs: 10
+    num_exp: 12
+    alpha: 0.00001 #decay downgrad
+    gamma: 0.9 #Adam decay

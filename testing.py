@@ -31,6 +31,7 @@ def Find_Optimal_Cutoff(target, predicted):
 
     return list(roc_t['threshold'])
 
+
 gwas_data = gwas_simulated_data(1000, 100, 8, prop_tc = 0.05)
 y, tc, X, col = gwas_data.generate_samples()
 X = pd.DataFrame(X).sample(frac=1.0).values
@@ -40,4 +41,4 @@ y = y.astype('float')
 model = bart(n_samples=1000, n_burn=50, n_trees=10, store_in_sample_predictions=False, n_jobs=1) # Use default parameters
 model.fit(X, y)
 
-feature_importance(model, X, y,0, n_permutations = 5, n_k_fold_splits = 2)
+feature_importance(model, X, y,0, n_permutations = 2, n_k_fold_splits = 2)
