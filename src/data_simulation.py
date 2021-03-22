@@ -32,10 +32,10 @@ class gwas_simulated_data(object):
         Due running time, we save the files and load from the pca.txt file
         '''
         G0, lambdas = self.sim_genes_TGP(D = 3)
-        G1, tc, y01 = self.sim_dataset(G0,lambdas,self.prop_tc )
-        G = self.add_colnames(G1,tc)
-        del G0,G1
-        return y01, tc, G
+        G1, tc, y01, col = self.sim_dataset(G0,lambdas,self.prop_tc )
+        #G, col = self.add_colnames(G1,tc)
+        del G0
+        return y01, tc, G1, col
 
 
     def sim_genes_TGP(self, D):
@@ -97,8 +97,9 @@ class gwas_simulated_data(object):
         y01 = np.zeros(len(p[0]))
         y01 = [npr.binomial(1,p[0][i],1)[0] for i in range(len(p[0]))]
         y01 = np.asarray(y01)
-        G = self.add_colnames(G0,tc)
-        return G, tc,y01
+        G, col = self.add_colnames(G0,tc)
+        #print('im here', G.shape)
+        return G, tc,y01, col
 
     def add_colnames(self, data, truecauses):
         '''
@@ -107,17 +108,19 @@ class gwas_simulated_data(object):
         colnames = []
         causes = 0
         noncauses = 0
+        columns = []
         for i in range(len(truecauses)):
-            if truecauses[i]>0:
+            if truecauses[i]!=0:
                 colnames.append('causal_'+str(causes))
                 causes+=1
+                columns.append(i)
             else:
                 colnames.append('noncausal_'+str(noncauses))
                 noncauses+=1
 
         data = pd.DataFrame(data)
         data.columns = colnames
-        return data
+        return data, columns
 
     
     
