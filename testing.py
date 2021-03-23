@@ -41,4 +41,4 @@ y = y.astype('float')
 model = bart(n_samples=1000, n_burn=50, n_trees=10, store_in_sample_predictions=False, n_jobs=1) # Use default parameters
 model.fit(X, y)
 
-feature_importance(model, X, y,0, n_permutations = 2, n_k_fold_splits = 2)
+feature_importance(model, X, y,0, n_permutations = 1, n_k_fold_splits = 2)

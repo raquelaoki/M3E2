@@ -9,6 +9,7 @@ from model_m3e2 import *
 
 from sklearn.metrics import confusion_matrix,f1_score
 from sklearn.metrics import roc_curve,roc_auc_score
+from sklearn.model_selection import train_test_split
 
 import torch
 import torch.nn as nn
@@ -34,17 +35,57 @@ def main(config_path):
     # Fix Torch graph-level seed for reproducibility
     torch.manual_seed(SEED)
 
-    #dataset
-    gwas_data = gwas_simulated_data(1000, 100, 8, prop_tc = 0.05)
-    y, tc, X, col = gwas_data.generate_samples()
-    X = pd.DataFrame(X).sample(frac=1.0).values
-    y = y.astype('float')
+
+    loader_train, loader_val, loader_test, n_treat , y_continuous = data_gwas()
+    X, y , T = next(iter(train_loader))
+    model = M3E2(data = 'gwas', num_treat = n_treat, num_exp = 5 )
+    criterion = nn.BCEWithLogitsLoss()
+    #criterion = [nn.BCEWithLogitsLoss(pos_weight=torch.tensor(params["cw_census"][i]).to(device)) for i in range(num_tasks)]
+    lr = 1e-4 #Learning Rate
+    wd = 0.01
+    if torch.cuda.is_available():
+        model.to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
+    opt_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=params["gamma"])
+
+    loss_ = []
+    best_val_AUC = 0
+    best_epoch = 0
 
 
 #todo: install torch and setting for gpu
-#todo: python data
 
+def data_gwas(params = None):
+    params['n_sample'] = 1000
+    params['n_covariates'] = 100
+    params["shuffle"] = True
+    params["batch_size"] = 250
+    SEED = 1
+    #dataset
+    gwas_data = gwas_simulated_data(params['n_sample'] , params['n_covariates'], SEED, prop_tc = 0.05)
+    y, tc, X, col = gwas_data.generate_samples()
+    X = pd.DataFrame(X).sample(frac=1.0).values
+    T = X[:,col]
+    X1 = np.delete(X,col,1)
+    print('\nTotal: ',X.shape,'\nCovariates: ', X1.shape, '\nTreatments: ',T.shape)
+    #X = pd.DataFrame(X).sample(frac=1.0).values
+    #y = y.astype('float')
+    X_train, X_test, y_train, y_test, T_train, T_test = train_test_split(X1, y, T, test_size=0.33, random_state=SEED)
+    X_val, X_test, y_val, y_test, T_val, T_test = train_test_split(X_test, y_test, T_test, test_size=0.5, random_state=SEED)
 
+    ''' Creating TensorDataset to use in the DataLoader '''
+    dataset_train = TensorDataset(Tensor(X_train), Tensor(y_train),Tensor(T_train))
+    dataset_test = TensorDataset(Tensor(X_test), Tensor(y_test),Tensor(T_test))
+    dataset_val = TensorDataset(Tensor(X_val), Tensor(y_val),Tensor(T_val))
+
+    ''' Required: Create DataLoader for training the models '''
+    loader_train = DataLoader(dataset_train, shuffle=params["shuffle"], batch_size=params["batch_size"])
+    loader_val = DataLoader(dataset_validation,shuffle=params["shuffle"],batch_size=validation_data.shape[0])
+    loader_test = DataLoader(dataset_test, shuffle=False, batch_size=test_data.shape[0])
+
+    y_continuous = False
+    n_treat = T_test.shape[1]
+    return loader_train, loader_val, loader_test, n_treat , y_continuous
 
 
 if __name__ == "__main__":

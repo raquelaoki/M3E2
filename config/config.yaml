@@ -1,4 +1,5 @@
 #Parameters
+#todo: complete 
 parameters:
     data: 'gwas' #'income','marital','education',
     model: 'm3e2' #MMoE or MMoEEx (MAML)
