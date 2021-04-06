@@ -1,25 +1,23 @@
 
-class deconfounder_algorithm():
-    def __init__(self):
-        super(deconfounder_algorithm, self).__init__()
+class methodNAME:
+    def __init__(self,X_train, X_test, y_train, y_test):
+        super(methodNAME, self).__init__()
+        self.X_train = X_train
+        self.X_test = X_test
+        self.y_train = y_train
+        self.y_test = y_test
+        print('Running methodNAME')
 
-    def deconfounder(self, X_train, X_test, y_train, y_test):
-        """
-        input:
-        - train dataset
-        - colnames or possible causes
-        - y01: outcome
-        - k: dimension of latent space
-        - b: number of bootstrap samples
-        """
+    def fit(self, parameters):
+        print('adding fitting part')
+        print('should output predictions and some metrics for evaluation')
+        self.model = model
 
-
-
-
-
-
-# TODO: Compute Canada - martin's number
-
-# TODO: add Yizhoum150@gmail.com to repo
+    def cate(self):
+        print('optitional - depends on the methods implementation')
 
 
+"""
+Usage:
+Check the notebook with examples of the other baselines
+"""
