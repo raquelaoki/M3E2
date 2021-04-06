@@ -1,4 +1,4 @@
-pip install --no-index --upgrade pip
+pip install numpy
 pip install jupyter
 pip install pandas
 pip install -U scikit-learn
