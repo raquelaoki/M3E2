@@ -7,6 +7,17 @@ module load python/3.7
 
 virtualenv --no-download env
 source env/bin/activate
+
+pip install pipreqs
+pip install numpy
+pip install jupyter
+pip install pandas
+pip install -U scikit-learn
+pip install --no-index torch #https://docs.computecanada.ca/wiki/PyTorch
+pip install jupyterlmod
+pip install --no-index tensorflow_cpu #https://docs.computecanada.ca/wiki/TensorFlow
+pip install --no-index tensorflow-probability
+
 pip install --no-index -r requirements.txt
 echo -e '#!/bin/bash\nunset XDG_RUNTIME_DIR\njupyter notebook --ip $(hostname -f) --no-browser' > $VIRTUAL_ENV/bin/notebook.sh
 chmod u+x $VIRTUAL_ENV/bin/notebook.sh
