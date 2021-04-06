@@ -1,6 +1,7 @@
 # M3E2
 This project was developed using Compute Canada.
 
+## Virtualenv on Compute Canada
 Setting up the virtual env ([reference](https://docs.computecanada.ca/wiki/Python#Creating_and_using_a_virtual_environment))
 ```bash
 module load python/3.7
@@ -34,3 +35,9 @@ Note: ports might differ, check before running if you are using the correct ones
 
 TODO: module load cuda torch (test if required)
 
+## Datasets
+- Simulated datasets are available [here](https://github.com/raquelaoki/CompBioAndSimulated_Datasets)
+
+## Baselines
+- The Deconfouder Algorithm, BART, and CEVAE were previously implemented [here](https://github.com/raquelaoki/ParKCa). We are using the same implementation. 
+- Dragonned and Hi-CI: TODO
