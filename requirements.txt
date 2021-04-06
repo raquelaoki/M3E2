@@ -1,16 +1,8 @@
-torch==1.8.1
-tensorflow_cpu==2.4.1
-joblib==1.0.1
 scipy==1.6.0
 pandas==1.1.5
-h5py==2.10.0
 numpy==1.19.4
-tensorflow_probability==0.11.0
 matplotlib==3.4.1
-pandas_plink==2.2.4
-pywsl==0.1.4
 scikit_learn==0.24.1
 seaborn==0.11.1
 statsmodels==0.12.2
-tensorflow==2.4.1
-tqdm==4.60.0
+jupyterlmod
