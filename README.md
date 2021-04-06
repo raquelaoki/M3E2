@@ -4,9 +4,8 @@ This project was developed using Compute Canada.
 Setting up the virtual env ([reference](https://docs.computecanada.ca/wiki/Python#Creating_and_using_a_virtual_environment))
 ```bash
 module load python/3.7
-module load cuda torch
 
-virtualenv env
+virtualenv --no-download env
 source env/bin/activate
 pip install --no-index -r requirements.txt
 echo -e '#!/bin/bash\nunset XDG_RUNTIME_DIR\njupyter notebook --ip $(hostname -f) --no-browser' > $VIRTUAL_ENV/bin/notebook.sh
