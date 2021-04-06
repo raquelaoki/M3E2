@@ -1,2 +1,3 @@
 pip install pandas
-
+pip install -U scikit-learn
+pip install --no-index tensorflow_cpu #https://docs.computecanada.ca/wiki/TensorFlow
