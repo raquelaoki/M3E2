@@ -4,6 +4,8 @@ This project was developed using Compute Canada.
 Setting up the virtual env
 ```bash
 module load python/3.7
+module load cuda torch
+
 virtualenv env
 source env/bin/activate
 pip install jupyter
