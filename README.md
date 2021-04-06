@@ -8,7 +8,6 @@ module load python/3.7
 virtualenv --no-download env
 source env/bin/activate
 
-pip install pipreqs
 pip install numpy
 pip install jupyter
 pip install pandas
@@ -41,3 +40,10 @@ Note: ports might differ, check before running if you are using the correct ones
 4. Open the link shown on Compute Canada on your local browser.
 
 TODO: module load cuda torch (test if required)
+
+
+How to create the requeriment files: 
+```python
+pip install pipreqs
+pipreqs --force ./
+```
