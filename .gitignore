@@ -3,8 +3,8 @@ bartpy
 __MACOSX
 .DS_Store
 CompBioAndSimulated_Datasets
-
-
+.idea
+ParKCa
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

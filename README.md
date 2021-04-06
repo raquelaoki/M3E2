@@ -21,7 +21,6 @@ pip install --no-index tensorflow-probability
 pip install --no-index -r requirements.txt
 echo -e '#!/bin/bash\nunset XDG_RUNTIME_DIR\njupyter notebook --ip $(hostname -f) --no-browser' > $VIRTUAL_ENV/bin/notebook.sh
 chmod u+x $VIRTUAL_ENV/bin/notebook.sh
-pip install jupyterlmod
 jupyter nbextension install --py jupyterlmod --sys-prefix #dont work
 jupyter nbextension enable --py jupyterlmod --sys-prefix
 jupyter serverextension enable --py jupyterlmod --sys-prefix
