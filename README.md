@@ -3,7 +3,7 @@ This project was developed using Compute Canada.
 
 Setting up the virtual env
 ```bash
-module load python/3.6
+module load python/3.7
 virtualenv env
 source env/bin/activate
 pip install jupyter
