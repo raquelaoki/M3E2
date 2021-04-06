@@ -4,7 +4,7 @@ numpy==1.19.4
 matplotlib
 scikit_learn==0.24.1
 seaborn==0.11.1
-statsmodels==0.12.2
+statsmodels
 jupyterlmod
 torch==1.8.1
 tensorflow_cpu==2.4.1
