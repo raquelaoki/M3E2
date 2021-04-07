@@ -2,7 +2,7 @@ scipy==1.6.0
 pandas==1.1.5
 numpy==1.19.4
 matplotlib
-scikit_learn==0.24.1
+scikit_learn==0.22
 seaborn==0.11.1
 statsmodels
 jupyterlmod
