@@ -52,9 +52,10 @@ def main(config_path):
         data_nnl = m3e2.data_nn(X_train.values, X_test.values, y_train, y_test, treatement_columns,
                                 treatment_effects[treatement_columns], X1_cols, X2_cols)
         loader_train, loader_val, loader_test, num_features = data_nnl.loader(params['suffle'],params['batch_size'],SEED)
-        cate_test = m3e2.fit_nn(loader_train, loader_val, loader_test,params,treatement_columns, num_features)
+        cate_m3e2 = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features)
         print('... CATE')
-        print(cate_test, treatment_effects[treatement_columns])
+        cate = pd.DataFrame({'CATE_M3E2': cate_m3e2, 'True_Effect': treatment_effects[treatement_columns]})
+        print(cate)
 
 
 if __name__ == "__main__":
