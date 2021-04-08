@@ -9,7 +9,7 @@ module load python/3.7
 virtualenv --no-download env
 source env/bin/activate
 
-#It takes some time ~1h
+#It takes some time ~3h
 pip install --no-index -r requirements.txt
 
 # For interactive jupyter notebook:
