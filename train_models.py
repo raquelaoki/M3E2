@@ -43,6 +43,7 @@ def main(config_path):
         sdata_gwas = gwas_simulated_data(prop_tc=0.05, pca_path='/content/CompBioAndSimulated_Datasets/data/tgp_pca2.txt')
         X, y, y01, treatement_columns, treatment_effects, group = sdata_gwas.generate_samples()
         X_train, X_test, y_train, y_test = train_test_split(X, y01, test_size=0.33, random_state=SEED)
+        print('... Target - proportion of 1s', np.sum(y01)/len(y01) )
         # Split X1, X2 on GWAS
         X1_cols = []
         X2_cols = range(X.shape[1]-len(treatement_columns))
@@ -52,6 +53,7 @@ def main(config_path):
                                 treatment_effects[treatement_columns], X1_cols, X2_cols)
         loader_train, loader_val, loader_test, num_features = data_nnl.loader(params['suffle'],params['batch_size'],SEED)
         cate_test = m3e2.fit_nn(loader_train, loader_val, loader_test,params,treatement_columns, num_features)
+        print('... CATE')
         print(cate_test, treatment_effects[treatement_columns])
 
 

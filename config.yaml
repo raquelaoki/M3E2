@@ -5,7 +5,7 @@ parameters:
     model: 'm3e2' #MMoE or MMoEEx (MAML)
     id: 'testing' #description
     batch_size: 250
-    max_epochs: 10
+    max_epochs: 50
     num_exp: 12
     alpha: 0.00001 #decay downgrad
     gamma: 0.9 #Adam decay
@@ -15,5 +15,5 @@ parameters:
     lr: 0.0001 #learning rate
     wd: 0.01 #decay
     best_validation_test: True
-    print: 2
+    print: 5
 

@@ -61,9 +61,10 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
     loss_train, loss_val = np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
     auc_train, auc_val = np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
 
-    loss_av = 0
     best_val_AUC = 0
     best_epoch = 0
+    sigmoid = nn.Sigmoid()
+    print('... Training')
 
     for e in range(params['max_epochs']):
         torch.cuda.empty_cache()
@@ -71,53 +72,70 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         loss_av = 0
         auc_av = 0
         # Train
+        batch_count = 1
         for i, batch in enumerate(loader_train):
             optimizer.zero_grad()
             ty_train_pred = model(batch[0].to(device))
-            ty_train_obs = np.concatenate([batch[2], batch[1]], 1)
-            loss = criterion(ty_train_pred.reshape(1, -1), ty_train_obs.reshape(1, -1))
+            ty_train_obs = torch.cat((batch[2], batch[1].reshape(-1, 1)), 1).to(device)
+            loss = criterion(ty_train_pred.reshape(-1), ty_train_obs.reshape(-1))
             loss_av += loss
-            auc_av += roc_auc_score(ty_train_pred[model.num_treat + 1].cpu().detach().numpy(),
-                                    batch[1])
+            y01_train_pred = sigmoid(ty_train_pred[:, model.num_treat]).cpu().detach().numpy()
+            y01_train_pred = [1 if item > 0.5 else 0 for item in y01_train_pred]
+            try:
+                auc_av += roc_auc_score(y01_train_pred, batch[1])
+                batch_count += 1
+            except ValueError:
+                pass
             loss.backward()
             optimizer.step()
 
         loss_train[e] = loss_av.cpu().detach().numpy() / i
-        auc_train[e] = auc_av / i
+        auc_train[e] = auc_av / batch_count
 
         # Validation
         X_val, y_val, T_val = next(iter(loader_val))
         ty_val_pred = model(X_val.to(device))
-        ty_val_obs = np.concatenate([T_val, y_val], 1)
-        loss_val[e] = criterion(ty_val_pred.reshape(1, -1), ty_val_obs.reshape(1, -1)).cpu().detach().numpy()
-        auc_val[e] = roc_auc_score(ty_val_pred[model.num_treat + 1].cpu().detach().numpy(), y_val)
+        ty_val_obs = torch.cat((T_val, y_val.reshape(-1, 1)), 1).to(device)
+        loss_val[e] = criterion(ty_val_pred.reshape(-1), ty_val_obs.reshape(-1)).cpu().detach().numpy()
+        y01_val_pred = sigmoid(ty_val_pred[:, model.num_treat]).cpu().detach().numpy()
+        y01_val_pred = [1 if item > 0.5 else 0 for item in y01_val_pred]
+        try:
+            auc_val[e] = roc_auc_score(y01_val_pred, y_val)
+        except ValueError:
+            auc_val[e] = np.nan
 
         # Best model saved
         if params["best_validation_test"]:
             if auc_val[e] > best_val_AUC:
+                best_epoch = e
                 best_val_AUC = auc_val[e]
-                path = 'm3e2_' + id + 'best.pth'
+                path = 'm3e2_' + params['id'] + 'best.pth'
                 torch.save(model.state_dict(), path)
 
         # Printing
         if e % params['print'] == 0:
-            print('...... Train: loss ', loss_train[e], ' and auc ', auc_train[e])
-            print('...... Val: loss ', loss_val[e], ' and auc ', auc_val[e])
+            print('...... ', e, ' Train: loss ', round(loss_train[e], 2), 'auc ', round(auc_train[e], 2),
+                  '/// Val: loss ', round(loss_val[e], 2), 'auc ', round(auc_val[e], 2))
 
     if params['best_validation_test']:
-        print('... Loading Best validation epoch')
+        print('... Loading Best validation (epoch ', best_epoch, ')')
         model.load_state_dict(torch.load(path))
 
     print('... Final Metrics')
     data_ = [loader_train, loader_val, loader_test]
-    data_name = ['Train', 'Validation', 'Test']
+    data_name = ['Train', 'Val', 'Test']
     for i, data in enumerate(data_):
         X, y, T = next(iter(data))
-        ty_pred = model(X)
-        auc = roc_auc_score(ty_pred[model.num_treat + 1].cpu().detach().numpy(), y)
-        print('...', data_name[i], ': ', auc)
+        ty_pred = model(X.to(device))
+        y01_pred = sigmoid(ty_pred[:, model.num_treat]).cpu().detach().numpy()
+        y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
+        try:
+            auc = roc_auc_score(y01_pred, y)
+        except ValueError:
+            aux = np.nan()
+        print('......', data_name[i], ': ', round(auc, 3))
 
-    return model.outcomeY
+    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1)
 
 
 class M3E2(nn.Module):
@@ -177,9 +195,9 @@ class M3E2(nn.Module):
         self.dropout = nn.Dropout(0.25)
         self.tahn = nn.Tanh()
         self.sigmoid = nn.Sigmoid()
-        print('...model initialization done!')
+        print('... Model initialization done!')
 
-    def forward(self, inputs, treat_assignment=None):
+    def forward(self, inputs, treat_assignment=None, device=None):
         n = inputs.shape[0]
         # MISSING AUTOENCODER
 
@@ -211,8 +229,8 @@ class M3E2(nn.Module):
 
         gate_outputs = F.softmax(gate_outputs, dim=2)
         ''' Multiplying gates x experts  + propensity score output - T1, ..., Tk'''
-        output = []
-        for treatment in range(self.num_treat):
+        # output = []
+        for i, treatment in enumerate(range(self.num_treat)):
             gate = gate_outputs[treatment]
             out_t = torch.mul(gate, expert_outputs).reshape(1, gate.shape[0], gate.shape[1])
             out_t = out_t.add(self.bias_treat[treatment])
@@ -223,21 +241,28 @@ class M3E2(nn.Module):
                 HY = HY + out_t
             out_t = self.tahn(out_t)
             out_t = self.propensityT[treatment](out_t)
-            out_t = self.sigmoid(out_t)
-            output.append(out_t)
+            # out_t = self.sigmoid(out_t)
+            if i == 0:
+                output = out_t.reshape(-1, 1)
+            else:
+                output = torch.cat((output, out_t.reshape(-1, 1)), 1)
 
+        # output = torch.transpose(output, 0, 1)
         '''Outcome output - Y'''
         HY = HY / self.num_treat
+        HY = torch.reshape(HY, (HY.shape[1], HY.shape[2]))
+
         if treat_assignment is not None:
             print('TODO')
         else:
-            aux = np.concatenate([output, HY], axis=1)
-            out = torch.mul(aux, self.outcomeY)
+            aux = torch.cat((output, HY), 1)
+            out = torch.matmul(aux, self.outcomeY)
             out = out.add(self.bias_y)
             # if y_continuous:
             #     out = self.tahn(out)
             # else:
-            out = self.sigmoid(out)
-            output.append(out)
+            # out = self.sigmoid(out)
+            # because BCEwithLogitsLoss combines sigmoid and BCELoss
+            output = torch.cat((output, out.reshape(-1, 1)), 1)
 
         return output
