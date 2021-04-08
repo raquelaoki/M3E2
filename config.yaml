@@ -1,0 +1,19 @@
+#Parameters
+#todo: complete 
+parameters:
+    data: ['gwas']
+    model: 'm3e2' #MMoE or MMoEEx (MAML)
+    id: 'testing' #description
+    batch_size: 250
+    max_epochs: 10
+    num_exp: 12
+    alpha: 0.00001 #decay downgrad
+    gamma: 0.9 #Adam decay
+    n_sample: 10000
+    n_covariates: 100
+    suffle: True
+    lr: 0.0001 #learning rate
+    wd: 0.01 #decay
+    best_validation_test: True
+    print: 2
+
