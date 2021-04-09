@@ -58,6 +58,9 @@ def main(config_path):
         print(cate)
 
 
+
+
+
 if __name__ == "__main__":
     start_time = time.time()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

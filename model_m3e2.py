@@ -43,6 +43,24 @@ class data_nn(object):
         return loader_train, loader_val, loader_test, len(self.X2_cols) + len(self.X1_cols)
 
 
+def roc_auc_batch(pred, obs, auc=None, count=0):
+    sigmoid = nn.Sigmoid()
+    y01_pred = sigmoid(Tensor(pred)).numpy()
+    y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
+    if auc is None:
+        try:
+            return roc_auc_score(y01_pred, obs)
+        except ValueError:
+            return np.nan
+    else:
+        try:
+            auc += roc_auc_score(y01_pred, obs)
+            count += 1
+            return auc, count
+        except ValueError:
+            return auc, count
+
+
 def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # X, y, T = next(iter(loader_train))
@@ -59,69 +77,83 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
     opt_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=params["gamma"])
 
     loss_train, loss_val = np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
-    auc_train, auc_val = np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
+    auc_train, auc_val = [], []  # np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
 
     best_val_AUC = 0
     best_epoch = 0
-    sigmoid = nn.Sigmoid()
+    # sigmoid = nn.Sigmoid()
     print('... Training')
 
     for e in range(params['max_epochs']):
         torch.cuda.empty_cache()
         # for i, batch in enumerate(tqdm(train_loader)):
         loss_av = 0
-        auc_av = 0
+        auc_train_, auc_val_ = np.zeros(model.num_treat + 1), np.zeros(model.num_treat + 1)
+        auc_count_ = np.zeros(model.num_treat + 1)
         # Train
-        batch_count = 1
         for i, batch in enumerate(loader_train):
             optimizer.zero_grad()
             ty_train_pred = model(batch[0].to(device))
-            ty_train_obs = torch.cat((batch[2], batch[1].reshape(-1, 1)), 1).to(device)
-            loss = criterion(ty_train_pred.reshape(-1), ty_train_obs.reshape(-1))
-            loss_av += loss
-            y01_train_pred = sigmoid(ty_train_pred[:, model.num_treat]).cpu().detach().numpy()
-            y01_train_pred = [1 if item > 0.5 else 0 for item in y01_train_pred]
-            try:
-                auc_av += roc_auc_score(y01_train_pred, batch[1])
-                batch_count += 1
-            except ValueError:
-                pass
-            loss.backward()
+            # Doing by task / target
+            loss_batch = 0
+            for j in range(ty_train_pred.shape[1]):
+                if j == ty_train_pred.shape[1]-1:
+                    loss_batch += criterion(ty_train_pred[:, j].reshape(-1),
+                                            batch[1].reshape(-1).to(device))*model.num_treat
+                    auc_train_[j], auc_count_[j] = roc_auc_batch(ty_train_pred[:, j].cpu().detach().numpy(),
+                                                                 batch[1].reshape(-1),
+                                                                 auc_train_[j], auc_count_[j])
+                else:
+                    loss_batch += criterion(ty_train_pred[:, j].reshape(-1), batch[2][:, j].reshape(-1).to(device))
+                    auc_train_[j], auc_count_[j] = roc_auc_batch(ty_train_pred[:, j].cpu().detach().numpy(),
+                                                                 batch[2][:, j].reshape(-1),
+                                                                 auc_train_[j], auc_count_[j])
+            loss_av += loss_batch.cpu().detach().numpy()
+            loss_batch.backward()
             optimizer.step()
 
-        loss_train[e] = loss_av.cpu().detach().numpy() / i
-        auc_train[e] = auc_av / batch_count
+        loss_train[e] = loss_av / i
+        auc_count_ = [np.max([i, 1]) for i in auc_count_]
+        auc_train.append(np.divide(auc_train_, auc_count_))
 
         # Validation
         X_val, y_val, T_val = next(iter(loader_val))
         ty_val_pred = model(X_val.to(device))
-        ty_val_obs = torch.cat((T_val, y_val.reshape(-1, 1)), 1).to(device)
-        loss_val[e] = criterion(ty_val_pred.reshape(-1), ty_val_obs.reshape(-1)).cpu().detach().numpy()
-        y01_val_pred = sigmoid(ty_val_pred[:, model.num_treat]).cpu().detach().numpy()
-        y01_val_pred = [1 if item > 0.5 else 0 for item in y01_val_pred]
-        try:
-            auc_val[e] = roc_auc_score(y01_val_pred, y_val)
-        except ValueError:
-            auc_val[e] = np.nan
+
+        #print('line 122 shapes', T_val.shape)
+        for j in range(ty_val_pred.shape[1]):
+            if j == ty_val_pred.shape[1]-1:
+                loss_val[e] += criterion(ty_val_pred[:, j].reshape(-1),
+                                         y_val.reshape(-1).to(device)).cpu().detach().numpy()*model.num_treat
+                auc_val_[j] = roc_auc_batch(ty_val_pred[:, j].cpu().detach().numpy(),
+                                            y_val.reshape(-1))
+            else:
+                loss_val[e] += criterion(ty_val_pred[:, j].reshape(-1),
+                                         T_val[:, j].reshape(-1).to(device)).cpu().detach().numpy()
+                auc_val_[j] = roc_auc_batch(ty_val_pred[:, j].cpu().detach().numpy(),
+                                            T_val[:, j].reshape(-1))
 
         # Best model saved
+        auc_val.append(auc_val_)
         if params["best_validation_test"]:
-            if auc_val[e] > best_val_AUC:
+            # TODO: check sum with np.nan values
+            if np.sum(auc_val[e]) > best_val_AUC:
                 best_epoch = e
-                best_val_AUC = auc_val[e]
+                best_val_AUC = np.sum(auc_val[e])
                 path = 'm3e2_' + params['id'] + 'best.pth'
                 torch.save(model.state_dict(), path)
 
         # Printing
         if e % params['print'] == 0:
-            print('...... ', e, ' Train: loss ', round(loss_train[e], 2), 'auc ', round(auc_train[e], 2),
-                  '/// Val: loss ', round(loss_val[e], 2), 'auc ', round(auc_val[e], 2))
+            print('...... ', e, ' \nTrain: loss ', round(loss_train[e], 2), 'auc ', auc_train[e],
+                  '\nVal: loss ', round(loss_val[e], 2), 'auc ',auc_val[e])
 
-    if params['best_validation_test']:
+    if params['best_validation_test'] and best_epoch >0:
         print('... Loading Best validation (epoch ', best_epoch, ')')
         model.load_state_dict(torch.load(path))
 
     print('... Final Metrics')
+    # TODO: update 
     data_ = [loader_train, loader_val, loader_test]
     data_name = ['Train', 'Val', 'Test']
     for i, data in enumerate(data_):
