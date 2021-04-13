@@ -5,7 +5,7 @@ import numpy as np
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, confusion_matrix
 
 
 class data_nn(object):
@@ -24,6 +24,8 @@ class data_nn(object):
         if X2_cols is None:
             X2_cols = range(X_train.shape[1])
         self.X2_cols = X2_cols
+        self.treat_weights = 1 / (self.T_train.sum(0) / self.T_train.shape[0])
+        print('Weights', self.treat_weights)
 
         print('M3E2: Train Shape ', self.X_train.shape, self.T_train.shape)
 
@@ -43,18 +45,25 @@ class data_nn(object):
         return loader_train, loader_val, loader_test, len(self.X2_cols) + len(self.X1_cols)
 
 
-def roc_auc_batch(pred, obs, auc=None, count=0):
+def roc_auc_batch(pred, obs, auc=None, count=0, errorm=''):
     sigmoid = nn.Sigmoid()
     y01_pred = sigmoid(Tensor(pred)).numpy()
     y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
     if auc is None:
-        try:
-            return roc_auc_score(y01_pred, obs)
-        except ValueError:
-            return np.nan
+        # try:
+        # roc = roc_auc_score(obs, y01_pred)
+        # if roc == 0.5:
+        #    print(confusion_matrix(obs, y01_pred))
+        return roc_auc_score(obs, y01_pred)
+        # except ValueError:
+        #    print(errorm)
+        #    if errorm == 'Treat - Val Full':
+        #        print('Positive Examples', obs.sum())
+        #    return np.nan
+
     else:
         try:
-            auc += roc_auc_score(y01_pred, obs)
+            auc += roc_auc_score(obs, y01_pred)
             count += 1
             return auc, count
         except ValueError:
@@ -66,10 +75,17 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
     # X, y, T = next(iter(loader_train))
     model = M3E2(data='gwas', num_treat=len(treatement_columns), num_exp=params['num_exp'],
                  num_features=num_features)
-    criterion = nn.BCEWithLogitsLoss()
-    # criterion = [nn.BCEWithLogitsLoss(pos_weight=torch.tensor(params["cw_census"][i]).to(device)) for i in
-    #             range(num_tasks)]
-    # print('lr', params['lr'], type(params['lr']))
+    # criterion = nn.BCEWithLogitsLoss()
+    if params['type_treatment'] == 'binary':
+        criterion = [nn.BCEWithLogitsLoss(pos_weight=torch.tensor(params['pos_weights'][i])) for i in
+                     range(model.num_treat)]
+    else:
+        criterion = [nn.MSELoss() for i in range(model.num_treat)]
+    if params['type_target'] == 'binary':
+        # Target
+        criterion.append(nn.BCEWithLogitsLoss())
+    else:
+        criterion.append(nn.MSELoss())
 
     if torch.cuda.is_available():
         model.to(device)
@@ -81,7 +97,6 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
 
     best_val_AUC = 0
     best_epoch = 0
-    # sigmoid = nn.Sigmoid()
     print('... Training')
 
     for e in range(params['max_epochs']):
@@ -97,14 +112,15 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
             # Doing by task / target
             loss_batch = 0
             for j in range(ty_train_pred.shape[1]):
-                if j == ty_train_pred.shape[1]-1:
-                    loss_batch += criterion(ty_train_pred[:, j].reshape(-1),
-                                            batch[1].reshape(-1).to(device))*model.num_treat
+                if j == ty_train_pred.shape[1] - 1:
+                    #target_weight_loss = model.num_treat
+                    loss_batch += criterion[j](ty_train_pred[:, j].reshape(-1),
+                                               batch[1].reshape(-1).to(device)) * model.num_treat *2
                     auc_train_[j], auc_count_[j] = roc_auc_batch(ty_train_pred[:, j].cpu().detach().numpy(),
                                                                  batch[1].reshape(-1),
                                                                  auc_train_[j], auc_count_[j])
                 else:
-                    loss_batch += criterion(ty_train_pred[:, j].reshape(-1), batch[2][:, j].reshape(-1).to(device))
+                    loss_batch += criterion[j](ty_train_pred[:, j].reshape(-1), batch[2][:, j].reshape(-1).to(device))
                     auc_train_[j], auc_count_[j] = roc_auc_batch(ty_train_pred[:, j].cpu().detach().numpy(),
                                                                  batch[2][:, j].reshape(-1),
                                                                  auc_train_[j], auc_count_[j])
@@ -120,18 +136,20 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         X_val, y_val, T_val = next(iter(loader_val))
         ty_val_pred = model(X_val.to(device))
 
-        #print('line 122 shapes', T_val.shape)
+        # print('line 122 shapes', T_val.shape)
         for j in range(ty_val_pred.shape[1]):
-            if j == ty_val_pred.shape[1]-1:
-                loss_val[e] += criterion(ty_val_pred[:, j].reshape(-1),
-                                         y_val.reshape(-1).to(device)).cpu().detach().numpy()*model.num_treat
+            if j == ty_val_pred.shape[1] - 1:
+                loss_val[e] += criterion[j](ty_val_pred[:, j].reshape(-1),
+                                            y_val.reshape(-1).to(device)).cpu().detach().numpy() * model.num_treat *2
+                errorm = 'Target - Val full'
                 auc_val_[j] = roc_auc_batch(ty_val_pred[:, j].cpu().detach().numpy(),
-                                            y_val.reshape(-1))
+                                            y_val.reshape(-1), errorm=errorm)
             else:
-                loss_val[e] += criterion(ty_val_pred[:, j].reshape(-1),
-                                         T_val[:, j].reshape(-1).to(device)).cpu().detach().numpy()
+                loss_val[e] += criterion[j](ty_val_pred[:, j].reshape(-1),
+                                            T_val[:, j].reshape(-1).to(device)).cpu().detach().numpy()
+                errorm = 'Treat - Val Full'
                 auc_val_[j] = roc_auc_batch(ty_val_pred[:, j].cpu().detach().numpy(),
-                                            T_val[:, j].reshape(-1))
+                                            T_val[:, j].reshape(-1), errorm=errorm)
 
         # Best model saved
         auc_val.append(auc_val_)
@@ -145,24 +163,27 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
 
         # Printing
         if e % params['print'] == 0:
+            opt_scheduler.step()
             print('...... ', e, ' \nTrain: loss ', round(loss_train[e], 2), 'auc ', auc_train[e],
-                  '\nVal: loss ', round(loss_val[e], 2), 'auc ',auc_val[e])
+                  '\nVal: loss ', round(loss_val[e], 2), 'auc ', auc_val[e])
 
-    if params['best_validation_test'] and best_epoch >0:
+    if params['best_validation_test'] and best_epoch > 0:
         print('... Loading Best validation (epoch ', best_epoch, ')')
         model.load_state_dict(torch.load(path))
 
-    print('... Final Metrics')
-    # TODO: update 
+    print('... Final Metrics - Target')
+    # TODO: update
     data_ = [loader_train, loader_val, loader_test]
     data_name = ['Train', 'Val', 'Test']
+    sigmoid = nn.Sigmoid()
     for i, data in enumerate(data_):
         X, y, T = next(iter(data))
         ty_pred = model(X.to(device))
         y01_pred = sigmoid(ty_pred[:, model.num_treat]).cpu().detach().numpy()
         y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
         try:
-            auc = roc_auc_score(y01_pred, y)
+            auc = roc_auc_score(y, y01_pred)
+            print(confusion_matrix(y, y01_pred))
         except ValueError:
             aux = np.nan()
         print('......', data_name[i], ': ', round(auc, 3))
@@ -176,7 +197,7 @@ class M3E2(nn.Module):
                  use_bias_gate=False,
                  use_autoencoder=False, y_continuous=False):
         super().__init__()
-        self.data = data
+        self.data = data  # name only
         self.num_treat = num_treat
         self.num_exp = num_exp
         self.expert = expert
