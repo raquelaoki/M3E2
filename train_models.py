@@ -57,7 +57,8 @@ def main(config_path):
                                                                               SEED)
         params['pos_weights'] = data_nnl.treat_weights
         params['pos_weight_y'] = trykey(params,'pos_weight_y',1)
-        cate_m3e2 = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features)
+        cate_m3e2 = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features,
+                                X1_cols, X2_cols)
         print('... CATE')
         cate = pd.DataFrame({'CATE_M3E2': cate_m3e2, 'True_Effect': treatment_effects[treatement_columns]})
         print(cate)
@@ -79,7 +80,8 @@ def main(config_path):
         loader_train, loader_val, loader_test, num_features = data_nnl.loader(params['suffle'], params['batch_size'],
                                                                               SEED)
         params['pos_weights'] = data_nnl.treat_weights
-        cate_m3e2 = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features)
+        cate_m3e2 = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features,
+                                X1_cols, X2_cols)
         print('... CATE')
         cate = pd.DataFrame({'CATE_M3E2': cate_m3e2, 'True_Effect': treatment_effects})
         print(cate)

@@ -63,11 +63,11 @@ def metric_batch(pred, obs, auc=None, count=0, errorm='', type='binary'):
         print('in progress')
 
 
-def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features):
+def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features, X1_cols, X2_cols=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # X, y, T = next(iter(loader_train))
     model = M3E2(data='gwas', num_treat=len(treatement_columns), num_exp=params['num_exp'],
-                 num_features=num_features, dropoutp=params['dropoutp'])
+                 num_features=num_features, dropoutp=params['dropoutp'], X1_cols, X2_cols)
     # criterion = nn.BCEWithLogitsLoss()
     if params['type_treatment'] == 'binary':
         criterion = [nn.BCEWithLogitsLoss(pos_weight=torch.tensor(params['pos_weights'][i])) for i in
@@ -80,6 +80,9 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
     else:
         criterion.append(nn.MSELoss())
 
+    if X2_cols is not None:
+        ae_criterion = nn.MSELoss()
+
     if torch.cuda.is_available():
         model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=params['lr'], weight_decay=params['wd'])
@@ -87,6 +90,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
 
     loss_train, loss_val = np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
     metric_train, metric_val = [], []  # np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
+    loss_train_ae, loss_val_ae = np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
 
     best_val_metric = 0
     best_epoch = 0
@@ -96,13 +100,12 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         metric_train_, metric_val_ = np.zeros(model.num_treat + 1), np.zeros(model.num_treat + 1)
         torch.cuda.empty_cache()
         # for i, batch in enumerate(tqdm(train_loader)):
-        loss_av = 0
+        loss_av, loss_ae_av = 0, 0
         metric_count_ = np.zeros(model.num_treat + 1)
         # Train alternating
         # TODO: Task balance
         for i, batch in enumerate(loader_train):
-
-            ty_train_pred = model(batch[0].to(device), batch[2].to(device))
+            ty_train_pred, X2_reconstruct = model(batch[0].to(device), batch[2].to(device))
             # Doing by task / target
 
             # For treat
@@ -124,19 +127,26 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
                                                               metric_train_[j], metric_count_[j],
                                                               type=params['type_target'])
             alpha = loss_batch_treats.cpu().detach().numpy() / loss_batch_target.cpu().detach().numpy()
-            loss_batch = loss_batch_treats + loss_batch_target * alpha
+            if X2_cols is not None:
+                loss_ae = ae_criterion(X2_reconstruct,batch[0][:,X2_cols].to(device))
+                print('line 132', loss_batch_treats, loss_batch_target,loss_ae)
+                loss_ae_av += loss_ae.cpu().detach().numpy()
+                loss_batch = loss_batch_treats + loss_batch_target * alpha + loss_ae
+            else:
+                loss_batch = loss_batch_treats + loss_batch_target * alpha
             loss_batch.backward()
             loss_av += loss_batch.cpu().detach().numpy()
             optimizer.step()
 
         loss_train[e] = loss_av / i
+        if X2_cols is not None:
+            loss_train_ae[e] = loss_ae_av/i
         metric_count_ = [np.max([i, 1]) for i in metric_count_]
-        # print('line 140',metric_train_,metric_count_)
         metric_train.append(np.divide(metric_train_, metric_count_))
 
         # Validation
         X_val, y_val, T_val = next(iter(loader_val))
-        ty_val_pred = model(X_val.to(device), T_val.to(device))
+        ty_val_pred, X2_reconstruct_val = model(X_val.to(device), T_val.to(device))
         for j in range(ty_val_pred.shape[1]):
             if j == ty_val_pred.shape[1] - 1:
                 loss_val[e] += criterion[j](ty_val_pred[:, j].reshape(-1),
@@ -152,6 +162,8 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
                 metric_val_[j] = metric_batch(ty_val_pred[:, j].cpu().detach().numpy(),
                                               T_val[:, j].reshape(-1), errorm=errorm,
                                               type=params['type_treatment'])
+        if X2_cols is not None:
+            loss_val_ae[e] = ae_criterion(X2_reconstruct_val, X_val[:,X2_cols])
 
         # Best model saved
         metric_val.append(metric_val_)
@@ -166,8 +178,13 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         # Printing
         if e % params['print'] == 0:
             opt_scheduler.step()
-            print('...... ', e, ' \nTrain: loss ', round(loss_train[e], 2), 'metric ', metric_train[e],
-                  '\nVal: loss ', round(loss_val[e], 2), 'metric ', metric_val[e])
+            if X2_cols is not None:
+                print('...... ', e, ' \nTrain: loss ', round(loss_train[e], 2), round(loss_train_ae[e],2), 'metric ', metric_train[e],
+                      '\nVal: loss ', round(loss_val[e], 2), 'metric ', metric_val[e])
+            else:
+                print('...... ', e, ' \nTrain: loss ', round(loss_train[e], 2), 'metric ', metric_train[e],
+                      '\nVal: loss ', round(loss_val[e], 2), 'metric ', metric_val[e])
+
 
     if params['best_validation_test'] and best_epoch > 0:
         print('... Loading Best validation (epoch ', best_epoch, ')')
@@ -179,7 +196,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
     sigmoid = nn.Sigmoid()
     for i, data in enumerate(data_):
         X, y, T = next(iter(data))
-        ty_pred = model(X.to(device), T.to(device))
+        ty_pred, _ = model(X.to(device), T.to(device))
         y01_pred = sigmoid(ty_pred[:, model.num_treat]).cpu().detach().numpy()
         y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
         try:
@@ -198,7 +215,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
 class M3E2(nn.Module):
     # https://github.com/drawbridge/keras-mmoe/blob/master/census_income_demo.py
     def __init__(self, data, num_treat, num_exp, num_features, expert=None, units_exp=4, use_bias_exp=False,
-                 use_bias_gate=False, use_autoencoder=False, y_continuous=False, dropoutp=0.25):
+                 use_bias_gate=False, y_continuous=False, dropoutp=0.25, X1_cols=None, X2_cols=None):
         super().__init__()
         self.data = data  # name only
         self.num_treat = num_treat
@@ -208,9 +225,11 @@ class M3E2(nn.Module):
         self.units_tower = units_exp
         self.use_bias_exp = use_bias_exp
         self.use_bias_gate = use_bias_gate
-        self.use_autoencoder = use_autoencoder
+        #self.use_autoencoder = use_autoencoder
         self.y_continuous = y_continuous
         self.num_features = num_features
+        self.X1_cols = X1_cols
+        self.X2_cols = X2_cols
 
         '''Defining experts - number is defined by the user'''
         if self.expert is None:
@@ -241,10 +260,9 @@ class M3E2(nn.Module):
         self.propensityT = nn.ModuleList([nn.Linear(self.units_tower, 1) for i in range(self.num_treat)])
         self.outcomeY = nn.Parameter(torch.rand(size=(self.num_treat + self.units_tower, 1)))
 
-        '''TODO: Defining'''
-        # autoencoder
-        if self.use_autoencoder:
-            self.ae = AE()
+        '''Autoenconder'''
+        if self.X2_cols is not None:
+            self.ae = AE(input=len(self.X2_cols))
         # propensity score
 
         '''Defining activation functions and others'''
@@ -255,10 +273,20 @@ class M3E2(nn.Module):
         print('... Model initialization done!')
 
     def forward(self, inputs, treat_assignment=None, device=None):
+
         n = inputs.shape[0]
-        # MISSING AUTOENCODER
+
         '''Dropout'''
         inputs = self.dropout(inputs)
+
+        if self.X2_cols is not None:
+            print('l262',inputs.shape)
+            inputsX2 = inputs[self.X2_cols]
+            inputsX1 = inputs[self.X1_cols]
+            print('l264',inputsX1.shape, inputsX2.shape)
+            inputsX2, L = self.ae(inputsX2)
+            inputs =  torch.cat((inputsX1, L), 1)
+            print('l272', inputs.shape)
 
         ''' Calculating Experts'''
         for i in range(self.num_exp):
@@ -330,10 +358,14 @@ class M3E2(nn.Module):
             # out = out.add(self.bias_y)
             output = torch.cat((output, out.reshape(-1, 1)), 1)
 
-        return output
+        if self.X2_cols is not None:
+            return output, inputsX2
+        else:
+            return output, None
 
 
 class AE(nn.Module):
+    #https://medium.com/pytorch/implementing-an-autoencoder-in-pytorch-19baa22647d1
     def __init__(self, input, hidden1=64, hidden2=8):
         super().__init__()
         self.encoder_hidden_layer = nn.Linear(
@@ -360,4 +392,4 @@ class AE(nn.Module):
         activation = torch.relu(activation)
         activation = self.decoder_output_layer(activation)
         reconstructed = torch.relu(activation)
-        return reconstructed
+        return reconstructed, code
