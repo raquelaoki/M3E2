@@ -45,29 +45,22 @@ class data_nn(object):
         return loader_train, loader_val, loader_test, len(self.X2_cols) + len(self.X1_cols)
 
 
-def roc_auc_batch(pred, obs, auc=None, count=0, errorm=''):
-    sigmoid = nn.Sigmoid()
-    y01_pred = sigmoid(Tensor(pred)).numpy()
-    y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
-    if auc is None:
-        # try:
-        # roc = roc_auc_score(obs, y01_pred)
-        # if roc == 0.5:
-        #    print(confusion_matrix(obs, y01_pred))
-        return roc_auc_score(obs, y01_pred)
-        # except ValueError:
-        #    print(errorm)
-        #    if errorm == 'Treat - Val Full':
-        #        print('Positive Examples', obs.sum())
-        #    return np.nan
-
+def metric_batch(pred, obs, auc=None, count=0, errorm='', type='binary'):
+    if type == 'binary':
+        sigmoid = nn.Sigmoid()
+        y01_pred = sigmoid(Tensor(pred)).numpy()
+        y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
+        if auc is None:
+            return roc_auc_score(obs, y01_pred)
+        else:
+            try:
+                auc += roc_auc_score(obs, y01_pred)
+                count += 1
+                return auc, count
+            except ValueError:
+                return auc, count
     else:
-        try:
-            auc += roc_auc_score(obs, y01_pred)
-            count += 1
-            return auc, count
-        except ValueError:
-            return auc, count
+        print('in progress')
 
 
 def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features):
@@ -83,7 +76,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         criterion = [nn.MSELoss() for i in range(model.num_treat)]
     if params['type_target'] == 'binary':
         # Target
-        criterion.append(nn.BCEWithLogitsLoss())
+        criterion.append(nn.BCEWithLogitsLoss(pos_weight=torch.tensor(params['pos_weight_y'])))
     else:
         criterion.append(nn.MSELoss())
 
@@ -93,86 +86,88 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
     opt_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=params["gamma"])
 
     loss_train, loss_val = np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
-    auc_train, auc_val = [], []  # np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
+    metric_train, metric_val = [], []  # np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
 
-    best_val_AUC = 0
+    best_val_metric = 0
     best_epoch = 0
     print('... Training')
 
     for e in range(params['max_epochs']):
-        auc_train_, auc_val_ = np.zeros(model.num_treat + 1), np.zeros(model.num_treat + 1)
+        metric_train_, metric_val_ = np.zeros(model.num_treat + 1), np.zeros(model.num_treat + 1)
         torch.cuda.empty_cache()
         # for i, batch in enumerate(tqdm(train_loader)):
         loss_av = 0
-        auc_count_ = np.zeros(model.num_treat + 1)
+        metric_count_ = np.zeros(model.num_treat + 1)
         # Train alternating
         # TODO: Task balance
         for i, batch in enumerate(loader_train):
 
-            ty_train_pred = model(batch[0].to(device))
+            ty_train_pred = model(batch[0].to(device), batch[2].to(device))
             # Doing by task / target
 
             # For treat
             loss_batch_treats, loss_batch_target = 0, 0
             optimizer.zero_grad()
             for j in range(model.num_treat):
-                loss_batch_treats += criterion[j](ty_train_pred[:, j].reshape(-1), batch[2][:, j].reshape(-1).to(device))
-                auc_train_[j], auc_count_[j] = roc_auc_batch(ty_train_pred[:, j].cpu().detach().numpy(),
-                                                             batch[2][:, j].reshape(-1),
-                                                             auc_train_[j], auc_count_[j])
-            #loss_av += loss_batch_treats.cpu().detach().numpy()
-
+                loss_batch_treats += criterion[j](ty_train_pred[:, j].reshape(-1),
+                                                  batch[2][:, j].reshape(-1).to(device))
+                metric_train_[j], metric_count_[j] = metric_batch(ty_train_pred[:, j].cpu().detach().numpy(),
+                                                                  batch[2][:, j].reshape(-1),
+                                                                  metric_train_[j], metric_count_[j],
+                                                                  type=params['type_treatment'])
             # For target
             j = model.num_treat
             loss_batch_target = criterion[j](ty_train_pred[:, j].reshape(-1),
-                                      batch[1].reshape(-1).to(device))
-            auc_train_[j], auc_count_[j] = roc_auc_batch(ty_train_pred[:, j].cpu().detach().numpy(),
-                                                         batch[1].reshape(-1),
-                                                         auc_train_[j], auc_count_[j])
-            #print(loss_batch_treats.cpu().detach().numpy(), loss_batch_target.cpu().detach().numpy())
-            alpha = loss_batch_treats.cpu().detach().numpy()/loss_batch_target.cpu().detach().numpy()
-            loss_batch = loss_batch_treats + loss_batch_target*alpha
+                                             batch[1].reshape(-1).to(device))
+            metric_train_[j], metric_count_[j] = metric_batch(ty_train_pred[:, j].cpu().detach().numpy(),
+                                                              batch[1].reshape(-1),
+                                                              metric_train_[j], metric_count_[j],
+                                                              type=params['type_target'])
+            alpha = loss_batch_treats.cpu().detach().numpy() / loss_batch_target.cpu().detach().numpy()
+            loss_batch = loss_batch_treats + loss_batch_target * alpha
             loss_batch.backward()
             loss_av += loss_batch.cpu().detach().numpy()
             optimizer.step()
 
         loss_train[e] = loss_av / i
-        auc_count_ = [np.max([i, 1]) for i in auc_count_]
-        print('line 140',auc_train_,auc_count_)
-        auc_train.append(np.divide(auc_train_, auc_count_))
+        metric_count_ = [np.max([i, 1]) for i in metric_count_]
+        # print('line 140',metric_train_,metric_count_)
+        metric_train.append(np.divide(metric_train_, metric_count_))
 
         # Validation
         X_val, y_val, T_val = next(iter(loader_val))
-        ty_val_pred = model(X_val.to(device))
+        ty_val_pred = model(X_val.to(device), T_val.to(device))
         for j in range(ty_val_pred.shape[1]):
             if j == ty_val_pred.shape[1] - 1:
                 loss_val[e] += criterion[j](ty_val_pred[:, j].reshape(-1),
                                             y_val.reshape(-1).to(device)).cpu().detach().numpy() * model.num_treat * 2
                 errorm = 'Target - Val full'
-                auc_val_[j] = roc_auc_batch(ty_val_pred[:, j].cpu().detach().numpy(),
-                                            y_val.reshape(-1), errorm=errorm)
+                metric_val_[j] = metric_batch(ty_val_pred[:, j].cpu().detach().numpy(),
+                                              y_val.reshape(-1), errorm=errorm,
+                                              type=params['type_target'])
             else:
                 loss_val[e] += criterion[j](ty_val_pred[:, j].reshape(-1),
                                             T_val[:, j].reshape(-1).to(device)).cpu().detach().numpy()
                 errorm = 'Treat - Val Full'
-                auc_val_[j] = roc_auc_batch(ty_val_pred[:, j].cpu().detach().numpy(),
-                                            T_val[:, j].reshape(-1), errorm=errorm)
+                metric_val_[j] = metric_batch(ty_val_pred[:, j].cpu().detach().numpy(),
+                                              T_val[:, j].reshape(-1), errorm=errorm,
+                                              type=params['type_treatment'])
 
         # Best model saved
-        auc_val.append(auc_val_)
+        metric_val.append(metric_val_)
         if params["best_validation_test"]:
             # TODO: check sum with np.nan values
-            if np.sum(auc_val[e]) > best_val_AUC:
+            if np.sum(metric_val[e]) > best_val_metric:
                 best_epoch = e
-                best_val_AUC = np.sum(auc_val[e])
+                best_val_metric = np.sum(metric_val[e])
                 path = 'm3e2_' + params['id'] + 'best.pth'
                 torch.save(model.state_dict(), path)
 
         # Printing
         if e % params['print'] == 0:
             opt_scheduler.step()
-            print('...... ', e, ' \nTrain: loss ', round(loss_train[e], 2), 'auc ', auc_train[e],
-                  '\nVal: loss ', round(loss_val[e], 2), 'auc ', auc_val[e])
+            print('...... ', e, ' \nTrain: loss ', round(loss_train[e], 2), 'metric ', metric_train[e],
+                  '\nVal: loss ', round(loss_val[e], 2), 'metric ', metric_val[e])
 
     if params['best_validation_test'] and best_epoch > 0:
         print('... Loading Best validation (epoch ', best_epoch, ')')
@@ -184,15 +179,18 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
     sigmoid = nn.Sigmoid()
     for i, data in enumerate(data_):
         X, y, T = next(iter(data))
-        ty_pred = model(X.to(device))
+        ty_pred = model(X.to(device), T.to(device))
         y01_pred = sigmoid(ty_pred[:, model.num_treat]).cpu().detach().numpy()
         y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
         try:
-            auc = roc_auc_score(y, y01_pred)
+            metric = metric_batch(y, y01_pred, type=params['type_target'])
             print(confusion_matrix(y, y01_pred))
         except ValueError:
             aux = np.nan()
-        print('......', data_name[i], ': ', round(auc, 3))
+        print('......', data_name[i], ': ', round(metric, 3))
+
+    print('Outcome Y', model.outcomeY.cpu().detach().numpy().reshape(-1))
+    print('Bias ', model.bias_y.cpu().detach().numpy())
 
     return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1)
 
@@ -246,12 +244,13 @@ class M3E2(nn.Module):
         '''TODO: Defining'''
         # autoencoder
         if self.use_autoencoder:
-            print('missing')
+            self.ae = AE()
         # propensity score
 
         '''Defining activation functions and others'''
         self.dropout = nn.Dropout(dropoutp)
         self.tahn = nn.Tanh()
+        self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
         print('... Model initialization done!')
 
@@ -312,17 +311,53 @@ class M3E2(nn.Module):
         HY = HY / self.num_treat
         HY = torch.reshape(HY, (HY.shape[1], HY.shape[2]))
 
-        if treat_assignment is not None:
-            print('TODO')
-        else:
+        if treat_assignment is None:
+            print('No Treatment')
+            # Testing
             aux = torch.cat((output, HY), 1)
+            aux = self.relu(aux)
             out = torch.matmul(aux, self.outcomeY)
+            # bias is making coefs positive
             out = out.add(self.bias_y)
-            # if y_continuous:
-            #     out = self.tahn(out)
-            # else:
-            # out = self.sigmoid(out)
-            # because BCEwithLogitsLoss combines sigmoid and BCELoss
+            output = torch.cat((output, out.reshape(-1, 1)), 1)
+        else:
+            # Train
+            HY = self.relu(HY)
+            aux = torch.cat((treat_assignment, HY), 1)
+            # aux = self.relu(aux)
+            out = torch.matmul(aux, self.outcomeY)
+            # bias is making all coef be positive
+            # out = out.add(self.bias_y)
             output = torch.cat((output, out.reshape(-1, 1)), 1)
 
         return output
+
+
+class AE(nn.Module):
+    def __init__(self, input, hidden1=64, hidden2=8):
+        super().__init__()
+        self.encoder_hidden_layer = nn.Linear(
+            in_features=input, out_features=hidden1
+        )
+        self.encoder_output_layer = nn.Linear(
+            in_features=hidden1, out_features=hidden2
+        )
+        self.decoder_hidden_layer = nn.Linear(
+            in_features=hidden2, out_features=hidden1
+        )
+        self.decoder_output_layer = nn.Linear(
+            in_features=hidden1, out_features=input
+        )
+
+
+
+    def forward(self, features):
+        activation = self.encoder_hidden_layer(features)
+        activation = torch.relu(activation)
+        code = self.encoder_output_layer(activation)
+        code = torch.relu(code)
+        activation = self.decoder_hidden_layer(code)
+        activation = torch.relu(activation)
+        activation = self.decoder_output_layer(activation)
+        reconstructed = torch.relu(activation)
+        return reconstructed

@@ -1,6 +1,6 @@
 #Parameters
 parameters:
-    data: ['gwas']
+    data: ['gwas'] #gwas, copula
     n_sample: 10000
     n_covariates: 100
     model: 'm3e2' #MMoE or MMoEEx (MAML)
@@ -8,15 +8,16 @@ parameters:
     suffle: True
     best_validation_test: True
     batch_size: 500
-    max_epochs: 200
+    max_epochs: 400
     print: 40
-    alpha: 0.00001 #decay downgrad
+    alpha: 0.0001 #decay downgrad
     gamma: 0.9 #Adam decay
     lr: 0.001 #learning rate
     wd: 0.001 #decay
     dropoutp: 0.25
+    pos_weight_y: 1.2
     num_exp: 2
     units_exp: 4
-    type_treatment: 'binary' #continuous
-    type_target: 'binary'
+    type_treatment: 'binary' #continuous, binary
+    type_target: 'binary' #continuous, binary
 

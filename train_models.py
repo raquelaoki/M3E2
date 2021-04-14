@@ -52,17 +52,43 @@ def main(config_path):
         # TODO: add other baselines here to run everything on the same train/testing sets
 
         data_nnl = m3e2.data_nn(X_train.values, X_test.values, y_train, y_test, treatement_columns,
-                                treatment_effects[treatement_columns], X1_cols, X2_cols,
-                                units_exp=params['units_exp'])
+                                treatment_effects[treatement_columns], X1_cols, X2_cols)
         loader_train, loader_val, loader_test, num_features = data_nnl.loader(params['suffle'], params['batch_size'],
                                                                               SEED)
         params['pos_weights'] = data_nnl.treat_weights
+        params['pos_weight_y'] = trykey(params,'pos_weight_y',1)
         cate_m3e2 = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features)
         print('... CATE')
         cate = pd.DataFrame({'CATE_M3E2': cate_m3e2, 'True_Effect': treatment_effects[treatement_columns]})
         print(cate)
         dif = cate_m3e2 - treatment_effects[treatement_columns]
         print('MAE', np.abs(dif).mean())
+
+    if 'copula' in params['data']:
+        sdata_copula = copula_simulated_data()
+        X, y, y01, treatement_columns, treatment_effects = sdata_copula.generate_samples()
+        X_train, X_test, y_train, y_test = train_test_split(X, y01, test_size=0.33, random_state=SEED)
+        print('... Target - proportion of 1s', np.sum(y01) / len(y01))
+        # Split X1, X2 on GWAS
+        X1_cols = []
+        X2_cols = range(X.shape[1] - len(treatement_columns))
+        # TODO: add other baselines here to run everything on the same train/testing sets
+
+        data_nnl = m3e2.data_nn(X_train, X_test, y_train, y_test, treatement_columns,
+                                treatment_effects, X1_cols, X2_cols)
+        loader_train, loader_val, loader_test, num_features = data_nnl.loader(params['suffle'], params['batch_size'],
+                                                                              SEED)
+        params['pos_weights'] = data_nnl.treat_weights
+        cate_m3e2 = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features)
+        print('... CATE')
+        cate = pd.DataFrame({'CATE_M3E2': cate_m3e2, 'True_Effect': treatment_effects})
+        print(cate)
+        dif = cate_m3e2 - treatment_effects
+        print('MAE', np.abs(dif).mean())
+    if 'gwas' not in params['data'] and 'copula' not in params['data']:
+        print(
+            "ERRROR! \nDataset not recognized. \nChange the parameter data in your config.yaml file to gwas or copula.")
+
 
 def trykey(params,key,default):
     try:
