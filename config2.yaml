@@ -15,8 +15,11 @@ parameters:
     lr: 0.001 #learning rate
     wd: 0.001 #decay
     dropoutp: 0.25
+    pos_weight_y: 1.2
     num_exp: 2
     units_exp: 4
+    hidden1: 6
+    hidden2: 3
     type_treatment: 'continuous' #continuous, binary
     type_target: 'binary'
 

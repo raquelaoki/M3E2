@@ -18,6 +18,8 @@ parameters:
     pos_weight_y: 1.2
     num_exp: 2
     units_exp: 4
+    hidden1: 64
+    hidden2: 8
     type_treatment: 'binary' #continuous, binary
     type_target: 'binary' #continuous, binary
 

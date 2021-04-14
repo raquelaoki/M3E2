@@ -46,7 +46,7 @@ def main(config_path):
         X, y, y01, treatement_columns, treatment_effects, group = sdata_gwas.generate_samples()
         X_train, X_test, y_train, y_test = train_test_split(X, y01, test_size=0.33, random_state=SEED)
         print('... Target - proportion of 1s', np.sum(y01) / len(y01))
-        # Split X1, X2 on GWAS
+        # Split X1, X2 on GWAS: case with no clinicla variables , X2 = X
         X1_cols = []
         X2_cols = range(X.shape[1] - len(treatement_columns))
         # TODO: add other baselines here to run everything on the same train/testing sets
@@ -57,6 +57,8 @@ def main(config_path):
                                                                               SEED)
         params['pos_weights'] = data_nnl.treat_weights
         params['pos_weight_y'] = trykey(params,'pos_weight_y',1)
+        params['hidden1'] = trykey(params,'hidden1',64)
+        params['hidden2'] = trykey(params,'hidden2',8)
         cate_m3e2 = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features,
                                 X1_cols, X2_cols)
         print('... CATE')
