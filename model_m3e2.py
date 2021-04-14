@@ -74,7 +74,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # X, y, T = next(iter(loader_train))
     model = M3E2(data='gwas', num_treat=len(treatement_columns), num_exp=params['num_exp'],
-                 num_features=num_features)
+                 num_features=num_features, dropoutp=params['dropoutp'])
     # criterion = nn.BCEWithLogitsLoss()
     if params['type_treatment'] == 'binary':
         criterion = [nn.BCEWithLogitsLoss(pos_weight=torch.tensor(params['pos_weights'][i])) for i in
@@ -100,47 +100,54 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
     print('... Training')
 
     for e in range(params['max_epochs']):
+        auc_train_, auc_val_ = np.zeros(model.num_treat + 1), np.zeros(model.num_treat + 1)
         torch.cuda.empty_cache()
         # for i, batch in enumerate(tqdm(train_loader)):
         loss_av = 0
-        auc_train_, auc_val_ = np.zeros(model.num_treat + 1), np.zeros(model.num_treat + 1)
         auc_count_ = np.zeros(model.num_treat + 1)
-        # Train
+        # Train alternating
+        # TODO: Task balance
         for i, batch in enumerate(loader_train):
-            optimizer.zero_grad()
+
             ty_train_pred = model(batch[0].to(device))
             # Doing by task / target
-            loss_batch = 0
-            for j in range(ty_train_pred.shape[1]):
-                if j == ty_train_pred.shape[1] - 1:
-                    #target_weight_loss = model.num_treat
-                    loss_batch += criterion[j](ty_train_pred[:, j].reshape(-1),
-                                               batch[1].reshape(-1).to(device)) * model.num_treat *2
-                    auc_train_[j], auc_count_[j] = roc_auc_batch(ty_train_pred[:, j].cpu().detach().numpy(),
-                                                                 batch[1].reshape(-1),
-                                                                 auc_train_[j], auc_count_[j])
-                else:
-                    loss_batch += criterion[j](ty_train_pred[:, j].reshape(-1), batch[2][:, j].reshape(-1).to(device))
-                    auc_train_[j], auc_count_[j] = roc_auc_batch(ty_train_pred[:, j].cpu().detach().numpy(),
-                                                                 batch[2][:, j].reshape(-1),
-                                                                 auc_train_[j], auc_count_[j])
-            loss_av += loss_batch.cpu().detach().numpy()
+
+            # For treat
+            loss_batch_treats, loss_batch_target = 0, 0
+            optimizer.zero_grad()
+            for j in range(model.num_treat):
+                loss_batch_treats += criterion[j](ty_train_pred[:, j].reshape(-1), batch[2][:, j].reshape(-1).to(device))
+                auc_train_[j], auc_count_[j] = roc_auc_batch(ty_train_pred[:, j].cpu().detach().numpy(),
+                                                             batch[2][:, j].reshape(-1),
+                                                             auc_train_[j], auc_count_[j])
+            #loss_av += loss_batch_treats.cpu().detach().numpy()
+
+            # For target
+            j = model.num_treat
+            loss_batch_target = criterion[j](ty_train_pred[:, j].reshape(-1),
+                                      batch[1].reshape(-1).to(device))
+            auc_train_[j], auc_count_[j] = roc_auc_batch(ty_train_pred[:, j].cpu().detach().numpy(),
+                                                         batch[1].reshape(-1),
+                                                         auc_train_[j], auc_count_[j])
+            #print(loss_batch_treats.cpu().detach().numpy(), loss_batch_target.cpu().detach().numpy())
+            alpha = loss_batch_treats.cpu().detach().numpy()/loss_batch_target.cpu().detach().numpy()
+            loss_batch = loss_batch_treats + loss_batch_target*alpha
             loss_batch.backward()
+            loss_av += loss_batch.cpu().detach().numpy()
             optimizer.step()
 
         loss_train[e] = loss_av / i
         auc_count_ = [np.max([i, 1]) for i in auc_count_]
+        print('line 140',auc_train_,auc_count_)
         auc_train.append(np.divide(auc_train_, auc_count_))
 
         # Validation
         X_val, y_val, T_val = next(iter(loader_val))
         ty_val_pred = model(X_val.to(device))
-
-        # print('line 122 shapes', T_val.shape)
         for j in range(ty_val_pred.shape[1]):
             if j == ty_val_pred.shape[1] - 1:
                 loss_val[e] += criterion[j](ty_val_pred[:, j].reshape(-1),
-                                            y_val.reshape(-1).to(device)).cpu().detach().numpy() * model.num_treat *2
+                                            y_val.reshape(-1).to(device)).cpu().detach().numpy() * model.num_treat * 2
                 errorm = 'Target - Val full'
                 auc_val_[j] = roc_auc_batch(ty_val_pred[:, j].cpu().detach().numpy(),
                                             y_val.reshape(-1), errorm=errorm)
@@ -172,7 +179,6 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         model.load_state_dict(torch.load(path))
 
     print('... Final Metrics - Target')
-    # TODO: update
     data_ = [loader_train, loader_val, loader_test]
     data_name = ['Train', 'Val', 'Test']
     sigmoid = nn.Sigmoid()
@@ -194,8 +200,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
 class M3E2(nn.Module):
     # https://github.com/drawbridge/keras-mmoe/blob/master/census_income_demo.py
     def __init__(self, data, num_treat, num_exp, num_features, expert=None, units_exp=4, use_bias_exp=False,
-                 use_bias_gate=False,
-                 use_autoencoder=False, y_continuous=False):
+                 use_bias_gate=False, use_autoencoder=False, y_continuous=False, dropoutp=0.25):
         super().__init__()
         self.data = data  # name only
         self.num_treat = num_treat
@@ -245,7 +250,7 @@ class M3E2(nn.Module):
         # propensity score
 
         '''Defining activation functions and others'''
-        self.dropout = nn.Dropout(0.25)
+        self.dropout = nn.Dropout(dropoutp)
         self.tahn = nn.Tanh()
         self.sigmoid = nn.Sigmoid()
         print('... Model initialization done!')
@@ -253,6 +258,8 @@ class M3E2(nn.Module):
     def forward(self, inputs, treat_assignment=None, device=None):
         n = inputs.shape[0]
         # MISSING AUTOENCODER
+        '''Dropout'''
+        inputs = self.dropout(inputs)
 
         ''' Calculating Experts'''
         for i in range(self.num_exp):

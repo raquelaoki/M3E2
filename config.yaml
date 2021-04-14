@@ -7,13 +7,14 @@ parameters:
     id: 'testing' #description
     suffle: True
     best_validation_test: True
-    batch_size: 250
-    max_epochs: 400
+    batch_size: 500
+    max_epochs: 200
     print: 40
     alpha: 0.00001 #decay downgrad
     gamma: 0.9 #Adam decay
     lr: 0.001 #learning rate
     wd: 0.001 #decay
+    dropoutp: 0.25
     num_exp: 2
     units_exp: 4
     type_treatment: 'binary' #continuous
