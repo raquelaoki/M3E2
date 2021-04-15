@@ -16,12 +16,6 @@ from CompBioAndSimulated_Datasets.simulated_data_multicause import *
 import model_m3e2 as m3e2
 
 
-# import torch.nn as nn
-# import torch.nn.functional as F
-# from torch.utils.data import Dataset, DataLoader, TensorDataset
-# from torch import optim, Tensor
-
-
 def main(config_path):
     """Start: Parameters Loading"""
     with open(config_path) as f:
