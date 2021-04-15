@@ -133,7 +133,6 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
             if X2_cols is not None:
                 loss_ae = ae_criterion(X2_reconstruct, batch[0][:, X2_cols].to(device))
                 beta = loss_batch_treats.cpu().detach().numpy() / loss_ae.cpu().detach().numpy()
-                #print('line 132', loss_batch_treats, loss_batch_target,loss_ae)
                 loss_ae_av += loss_ae.cpu().detach().numpy()
                 loss_batch = loss_batch_treats + loss_batch_target * alpha + loss_ae * beta
             else:
@@ -172,7 +171,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         # Best model saved
         metric_val.append(metric_val_)
         if params["best_validation_test"]:
-            # TODO: check sum with np.nan values
+            # Metric based on target
             if np.sum(metric_val[e][-1]) > best_val_metric:
                 best_epoch = e
                 best_val_metric = np.sum(metric_val[e][-1])

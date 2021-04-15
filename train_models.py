@@ -38,12 +38,19 @@ def main(config_path):
         sdata_gwas = gwas_simulated_data(prop_tc=0.05,
                                          pca_path='/content/CompBioAndSimulated_Datasets/data/tgp_pca2.txt')
         X, y, y01, treatement_columns, treatment_effects, group = sdata_gwas.generate_samples()
+        # TODO: add other baselines here to run everything on the same train/testing sets
+
+        # Train and Test split use the same seed
+        experiments, exp_time = baselines(['BART', 'DA', 'CEVAE'], pd.DataFrame(X), y01, params,
+                                          TreatCols=treatement_columns, timeit=True, seed=SEED)  # 'CEVAE',
+
+        experiments, output = organize_output(experiments, treatment_effects[treatement_columns], exp_time)
+
         X_train, X_test, y_train, y_test = train_test_split(X, y01, test_size=0.33, random_state=SEED)
         print('... Target - proportion of 1s', np.sum(y01) / len(y01))
         # Split X1, X2 on GWAS: case with no clinicla variables , X2 = X
         X1_cols = []
         X2_cols = range(X.shape[1] - len(treatement_columns))
-        # TODO: add other baselines here to run everything on the same train/testing sets
 
         data_nnl = m3e2.data_nn(X_train.values, X_test.values, y_train, y_test, treatement_columns,
                                 treatment_effects[treatement_columns], X1_cols, X2_cols)
@@ -121,10 +128,10 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
                                                                              test_size=0.33, random_state=seed)
     coef_table = pd.DataFrame(columns=['causes'])
     coef_table['causes'] = ['T' + str(i) for i in range(len(TreatCols))]
-    times = {}
+    times, f1_test = {}, {}
 
     if 'DA' in BaselinesList:
-        print('\n\nBaseline: DA')
+        #print('\n\nBaseline: DA')
         start_time = time.time()
         from deconfounder import deconfounder_algorithm as DA
         ParamsList['DA']['k'] = trykey(ParamsList['DA'],'k',15) # if exploring multiple latent sizes
@@ -133,25 +140,25 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
                 coln = 'DA_' + str(id) + str(k)
             else:
                 coln = 'DA'
-            model_da = DA(X_train, X_test, y_train, y_test, k)
+            model_da = DA(X_train, X_test, y_train, y_test, k, print_=False)
             ParamsList['DA']['class_weight'] = trykey(ParamsList['DA'], 'class_weight', {0:1,1:1})
-            coef, coef_continuos, roc = model_da.fit(class_weight=ParamsList['DA']['class_weight'])
+            coef, coef_continuos, roc, f1_test['DA'] = model_da.fit(class_weight=ParamsList['DA']['class_weight'])
             coef_table[coln] = coef_continuos[0:len(TreatCols)]
         times['DA'] = time.time() - start_time
-        print('Done!')
+        print('\nDone!')
 
     if 'BART' in BaselinesList:
-        print('\n\nLearner: BART')
+        #print('\n\nLearner: BART')
         start_time = time.time()
         from bart import BART as BART
         model_bart = BART(X_train01, X_test01, y_train, y_test)
         ParamsList['BART']['n_trees'] = trykey(ParamsList['BART'], 'n_trees', 50)
         ParamsList['BART']['n_burn'] = trykey(ParamsList['BART'], 'n_burn', 100)
-        model_bart.fit(n_trees=ParamsList['BART']['n_trees'], n_burn=ParamsList['BART']['n_burn'])
+        model_bart.fit(n_trees=ParamsList['BART']['n_trees'], n_burn=ParamsList['BART']['n_burn'],print_=False)
         print('...... predictions')
-        coef_table['BART'] = model_bart.cate(TreatCols)
+        coef_table['BART'], f1_test['BART'] = model_bart.cate(TreatCols, print_=False)
         times['BART'] = time.time() - start_time
-        print('Done!')
+        print('\nDone!')
 
     if 'CEVAE' in BaselinesList:
         print('\n\n Learner: CEVAE')
@@ -176,18 +183,28 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
                             epochs=ParamsList['CEVAE']['epochs'],
                             batch=ParamsList['CEVAE']['batch'],
                             z_dim=ParamsList['CEVAE']['z_dim'])
-        cate = model_cevae.fit_all()
-        coef_table['CEVAE'] = cate
+        coef_table['CEVAE'], f1_test['CEVAE'] = model_cevae.fit_all(print_=False)
         times['CEVAE'] = time.time() - start_time
-        print('Done!')
+        print('\nDone!')
 
     if not timeit:
         return coef_table
     else:
-        return coef_table, times
+        return coef_table, times, f1_test
 
 
 def organize_output(experiments, true_effect, exp_time):
+    """
+    Parameters
+    ----------
+    experiments
+    true_effect
+    exp_time
+
+    Returns
+    -------
+
+    """
     experiments['TrueTreat'] = true_effect
     experiments.set_index('causes', inplace=True)
     BaselinesNames = experiments.columns
