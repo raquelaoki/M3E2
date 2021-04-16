@@ -5,7 +5,7 @@ import numpy as np
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_auc_score, confusion_matrix, mean_squared_error
+from sklearn.metrics import roc_auc_score, confusion_matrix, mean_squared_error, f1_score
 
 
 class data_nn(object):
@@ -30,6 +30,7 @@ class data_nn(object):
         print('M3E2: Train Shape ', self.X_train.shape, self.T_train.shape)
 
     def loader(self, shuffle=True, batch=250, seed=1):
+        # TODO: change, here, X_val should come from testing set
         X_val, X_test, y_val, y_test, T_val, T_test = train_test_split(self.X_test, self.y_test, self.T_test,
                                                                        test_size=0.5, random_state=seed)
         ''' Creating TensorDataset to use in the DataLoader '''
@@ -180,7 +181,6 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
 
         # Printing
         if e % params['print'] == 0:
-            opt_scheduler.step()
             if X2_cols is not None:
                 print('...... ', e, ' \nTrain: loss ', round(loss_train[e], 2), round(loss_train_ae[e], 2), 'metric ',
                       metric_train[e],
@@ -188,6 +188,9 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
             else:
                 print('...... ', e, ' \nTrain: loss ', round(loss_train[e], 2), 'metric ', metric_train[e],
                       '\nVal: loss ', round(loss_val[e], 2), 'metric ', metric_val[e])
+        # Decay
+        if e % params['decay'] == 0:
+            opt_scheduler.step()
 
     if params['best_validation_test'] and best_epoch > 0:
         print('... Loading Best validation (epoch ', best_epoch, ')')
@@ -208,11 +211,16 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         except ValueError:
             aux = np.nan()
         print('......', data_name[i], ': ', round(metric, 3))
+        if data == 'Test':
+            f1 = f1_score(y,y01_pred)
 
     print('Outcome Y', model.outcomeY.cpu().detach().numpy().reshape(-1))
     print('Bias ', model.bias_y.cpu().detach().numpy())
 
-    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1)
+    # TODO: add f1 score for testing set
+
+
+    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1), f1
 
 
 class M3E2(nn.Module):

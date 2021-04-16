@@ -33,19 +33,22 @@ def main(config_path):
     random.seed(SEED)
     # Fix Torch graph-level seed for reproducibility
     torch.manual_seed(SEED)
-
+    rep = 0
     if 'gwas' in params['data']:
+
+        params_b = {'DA': {'k': [15]},
+                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 10}}
+
         sdata_gwas = gwas_simulated_data(prop_tc=0.05,
                                          pca_path='/content/CompBioAndSimulated_Datasets/data/tgp_pca2.txt')
         X, y, y01, treatement_columns, treatment_effects, group = sdata_gwas.generate_samples()
-        # TODO: add other baselines here to run everything on the same train/testing sets
-
         # Train and Test split use the same seed
-        experiments, exp_time = baselines(['BART', 'DA', 'CEVAE'], pd.DataFrame(X), y01, params,
-                                          TreatCols=treatement_columns, timeit=True, seed=SEED)  # 'CEVAE',
-
-        experiments, output = organize_output(experiments, treatment_effects[treatement_columns], exp_time)
-
+        # NEW
+        baselines_results, exp_time, f1_test = baselines(['DA', "CEVAE"], pd.DataFrame(X), y01, params_b,
+                                                         TreatCols=treatement_columns, timeit=True,
+                                                         seed=params['SEED'])  # 'CEVAE',
+        # END NEW
+        start_time = time.time()
         X_train, X_test, y_train, y_test = train_test_split(X, y01, test_size=0.33, random_state=SEED)
         print('... Target - proportion of 1s', np.sum(y01) / len(y01))
         # Split X1, X2 on GWAS: case with no clinicla variables , X2 = X
@@ -60,17 +63,35 @@ def main(config_path):
         params['pos_weight_y'] = trykey(params,'pos_weight_y',1)
         params['hidden1'] = trykey(params,'hidden1',64)
         params['hidden2'] = trykey(params,'hidden2',8)
-        cate_m3e2 = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features,
+        cate_m3e2, f1 = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features,
                                 X1_cols, X2_cols)
         print('... CATE')
-        cate = pd.DataFrame({'CATE_M3E2': cate_m3e2, 'True_Effect': treatment_effects[treatement_columns]})
-        print(cate)
-        dif = cate_m3e2 - treatment_effects[treatement_columns]
-        print('MAE', np.abs(dif).mean())
+        #cate = pd.DataFrame({'CATE_M3E2': cate_m3e2, 'True_Effect': treatment_effects[treatement_columns]})
+        #print(cate)
+        #dif = cate_m3e2 - treatment_effects[treatement_columns]
+        #print('MAE', np.abs(dif).mean())
+        baselines_results['M3E2'] = cate_m3e2
+        exp_time.append(time.time()-start_time)
+        f1_test.append(0)
+        output = organize_output(baselines_results.copy(), treatment_effects[treatement_columns], exp_time, f1_test,
+                                 rep=rep)
+        print(output)
 
     if 'copula' in params['data']:
+        params_b = {'DA': {'k': [5]},
+                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 5}}
+
         sdata_copula = copula_simulated_data()
         X, y, y01, treatement_columns, treatment_effects = sdata_copula.generate_samples()
+
+        # NEW
+        baselines_results, exp_time, f1_test = baselines(['DA', "CEVAE"], pd.DataFrame(X), y01, params_b,
+                                                         TreatCols=treatement_columns, timeit=True,
+                                                         seed=params['SEED'])  # 'CEVAE',
+        output = organize_output(baselines_results.copy(), treatment_effects[treatement_columns], exp_time, f1_test,
+                                 rep=0)
+        # END NEW
+        start = time.time()
         X_train, X_test, y_train, y_test = train_test_split(X, y01, test_size=0.33, random_state=SEED)
         print('... Target - proportion of 1s', np.sum(y01) / len(y01))
         # Split X1, X2 on GWAS
@@ -83,17 +104,19 @@ def main(config_path):
         loader_train, loader_val, loader_test, num_features = data_nnl.loader(params['suffle'], params['batch_size'],
                                                                               SEED)
         params['pos_weights'] = data_nnl.treat_weights
-        cate_m3e2 = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features,
+        cate_m3e2, f1_test_ = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features,
                                 X1_cols, X2_cols)
         print('... CATE')
         cate = pd.DataFrame({'CATE_M3E2': cate_m3e2, 'True_Effect': treatment_effects})
         print(cate)
         dif = cate_m3e2 - treatment_effects
         print('MAE', np.abs(dif).mean())
+
     if 'gwas' not in params['data'] and 'copula' not in params['data']:
         print(
             "ERRROR! \nDataset not recognized. \nChange the parameter data in your config.yaml file to gwas or copula.")
 
+    return output
 
 def trykey(params,key,default):
     try:
@@ -193,8 +216,9 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
         return coef_table, times, f1_test
 
 
-def organize_output(experiments, true_effect, exp_time):
+def organize_output(experiments, true_effect, exp_time=None, f1_scores=None, rep=0):
     """
+    Important: experiments, experiments times and f1 scores should be in the same order
     Parameters
     ----------
     experiments
@@ -203,21 +227,29 @@ def organize_output(experiments, true_effect, exp_time):
 
     Returns
     -------
-
     """
-    experiments['TrueTreat'] = true_effect
+    Treatments = experiments['causes']
     experiments.set_index('causes', inplace=True)
+    Treatments_cate = np.transpose(experiments)
     BaselinesNames = experiments.columns
-
+    experiments['TrueTreat'] = true_effect
     mae = []
     for col in BaselinesNames:
-        mae.append(np.sum(np.abs(experiments[col] - experiments['TrueTreat'])) / experiments.shape[0])
+        dif = np.abs(experiments[col] - experiments['TrueTreat'])
+        mae.append(np.nanmean(dif))
 
     output = pd.DataFrame({'Method': BaselinesNames, 'MAE': mae})
     exp_time['TrueTreat'] = 0
-    output['Time(s)'] = [exp_time[m] for m in output['Method'].values]
-    print(experiments, '\n', output)
-    return experiments, output
+    if exp_time is not None:
+        output['Time(s)'] = [exp_time[m] for m in output['Method'].values]
+    if f1_scores is not None:
+        output['F1_Test'] = [f1_scores[m] for m in output['Method'].values]
+    output['rep'] = rep
+
+    out = pd.DataFrame(Treatments_cate, columns=Treatments)
+    out.reset_index(inplace=True, drop=True)
+
+    return pd.concat((output, out), 1)
 
 
 if __name__ == "__main__":
