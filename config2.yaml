@@ -1,5 +1,6 @@
 #Parameters
 parameters:
+    SEED: 12
     data: ['copula'] # 'gwas,copula
     n_sample: 10000
     n_covariates: 15

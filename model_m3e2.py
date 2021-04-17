@@ -211,14 +211,11 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         except ValueError:
             aux = np.nan()
         print('......', data_name[i], ': ', round(metric, 3))
-        if data == 'Test':
+        if data_name[i] == 'Test':
             f1 = f1_score(y,y01_pred)
 
     print('Outcome Y', model.outcomeY.cpu().detach().numpy().reshape(-1))
     print('Bias ', model.bias_y.cpu().detach().numpy())
-
-    # TODO: add f1 score for testing set
-
 
     return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1), f1
 

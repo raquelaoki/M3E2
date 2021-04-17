@@ -249,6 +249,9 @@ def organize_output(experiments, true_effect, exp_time=None, f1_scores=None, rep
     out = pd.DataFrame(Treatments_cate, columns=Treatments)
     out.reset_index(inplace=True, drop=True)
 
+    #TODO: add number of treatments, n, confounders
+    #better: save files per setting, run together for plots?
+
     return pd.concat((output, out), 1)
 
 

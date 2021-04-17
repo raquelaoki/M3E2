@@ -1,5 +1,6 @@
 #Parameters
 parameters:
+    SEED: 122
     data: ['gwas'] #gwas, copula
     n_sample: 10000
     n_covariates: 100
@@ -16,7 +17,7 @@ parameters:
     lr: 0.001 #learning rate
     wd: 0.001 #decay
     dropoutp: 0.25
-    pos_weight_y: 1.2
+    pos_weight_y: 1.25
     num_exp: 2
     units_exp: 4
     hidden1: 64
