@@ -1,6 +1,6 @@
 #Parameters
 parameters:
-    SEED: 122
+    SEED: 22 #122
     data: ['gwas'] #gwas, copula
     n_sample: 10000
     n_covariates: 100
@@ -15,7 +15,7 @@ parameters:
     alpha: 0.0001 #decay downgrad
     gamma: 0.9 #Adam decay
     lr: 0.001 #learning rate
-    wd: 0.001 #decay
+    wd: 0.005 #weight_decay
     dropoutp: 0.25
     pos_weight_y: 1.25
     num_exp: 2
@@ -24,4 +24,6 @@ parameters:
     hidden2: 8
     type_treatment: 'binary' #continuous, binary
     type_target: 'binary' #continuous, binary
+    baselines: True
+    baselines_list: ['DA']
 

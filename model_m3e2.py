@@ -25,23 +25,22 @@ class data_nn(object):
             X2_cols = range(X_train.shape[1])
         self.X2_cols = X2_cols
         self.treat_weights = 1 / (self.T_train.sum(0) / self.T_train.shape[0])
-        print('Weights', self.treat_weights)
+        # print('Weights', self.treat_weights)
 
         print('M3E2: Train Shape ', self.X_train.shape, self.T_train.shape)
 
     def loader(self, shuffle=True, batch=250, seed=1):
-        # TODO: change, here, X_val should come from testing set
-        X_val, X_test, y_val, y_test, T_val, T_test = train_test_split(self.X_test, self.y_test, self.T_test,
-                                                                       test_size=0.5, random_state=seed)
+        X_train, X_val, y_train, y_val, T_train, T_val = train_test_split(self.X_train, self.y_train, self.T_train,
+                                                                       test_size=0.15, random_state=seed)
         ''' Creating TensorDataset to use in the DataLoader '''
-        dataset_train = TensorDataset(Tensor(self.X_train), Tensor(self.y_train), Tensor(self.T_train))
-        dataset_test = TensorDataset(Tensor(X_test), Tensor(y_test), Tensor(T_test))
+        dataset_train = TensorDataset(Tensor(X_train), Tensor(y_train), Tensor(T_train))
+        dataset_test = TensorDataset(Tensor(self.X_test), Tensor(self.y_test), Tensor(self.T_test))
         dataset_val = TensorDataset(Tensor(X_val), Tensor(y_val), Tensor(T_val))
 
         ''' Required: Create DataLoader for training the models '''
         loader_train = DataLoader(dataset_train, shuffle=shuffle, batch_size=batch)
         loader_val = DataLoader(dataset_val, shuffle=shuffle, batch_size=X_val.shape[0])
-        loader_test = DataLoader(dataset_test, shuffle=False, batch_size=X_test.shape[0])
+        loader_test = DataLoader(dataset_test, shuffle=False, batch_size=self.X_test.shape[0])
 
         return loader_train, loader_val, loader_test, len(self.X2_cols) + len(self.X1_cols)
 
@@ -107,11 +106,9 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         loss_av, loss_ae_av = 0, 0
         metric_count_ = np.zeros(model.num_treat + 1)
         # Train alternating
-        # TODO: Task balance
         for i, batch in enumerate(loader_train):
             ty_train_pred, X2_reconstruct = model(batch[0].to(device), batch[2].to(device))
             # Doing by task / target
-
             # For treat
             loss_batch_treats, loss_batch_target = 0, 0
             optimizer.zero_grad()
@@ -182,12 +179,12 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         # Printing
         if e % params['print'] == 0:
             if X2_cols is not None:
-                print('...... ', e, ' \nTrain: loss ', round(loss_train[e], 2), round(loss_train_ae[e], 2), 'metric ',
+                print('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), round(loss_train_ae[e], 2), 'metric ',
                       metric_train[e],
-                      '\nVal: loss ', round(loss_val[e], 2), 'metric ', metric_val[e])
+                      '\n... Val: loss ', round(loss_val[e], 2), 'metric ', metric_val[e])
             else:
-                print('...... ', e, ' \nTrain: loss ', round(loss_train[e], 2), 'metric ', metric_train[e],
-                      '\nVal: loss ', round(loss_val[e], 2), 'metric ', metric_val[e])
+                print('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), 'metric ', metric_train[e],
+                      '\n... Val: loss ', round(loss_val[e], 2), 'metric ', metric_val[e])
         # Decay
         if e % params['decay'] == 0:
             opt_scheduler.step()
@@ -207,7 +204,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
         try:
             metric = metric_batch(y, y01_pred, type=params['type_target'])
-            print(confusion_matrix(y, y01_pred))
+            #print(confusion_matrix(y, y01_pred))
         except ValueError:
             aux = np.nan()
         print('......', data_name[i], ': ', round(metric, 3))
@@ -215,9 +212,9 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
             f1 = f1_score(y,y01_pred)
 
     print('Outcome Y', model.outcomeY.cpu().detach().numpy().reshape(-1))
-    print('Bias ', model.bias_y.cpu().detach().numpy())
+    # print('Bias ', model.bias_y.cpu().detach().numpy())
 
-    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1), f1
+    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1)*(-1), f1
 
 
 class M3E2(nn.Module):

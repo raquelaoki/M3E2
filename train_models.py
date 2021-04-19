@@ -16,16 +16,14 @@ from CompBioAndSimulated_Datasets.simulated_data_multicause import *
 import model_m3e2 as m3e2
 
 
-def main(config_path):
+def main(config_path, seed_=10):
     """Start: Parameters Loading"""
     with open(config_path) as f:
         config = yaml.safe_load(f)
     params = config['parameters']
-
-    try:
-        SEED = params["SEED"]
-    except KeyError:
-        SEED = 2
+    params["SEED"] = trykey(params,'SEED',2)
+    SEED = seed_
+    print('\n\nCurrent SEED', SEED)
 
     # Fix numpy seed for reproducibility
     np.random.seed(SEED)
@@ -33,21 +31,29 @@ def main(config_path):
     random.seed(SEED)
     # Fix Torch graph-level seed for reproducibility
     torch.manual_seed(SEED)
-    rep = 0
+    rep = SEED
+    dataseed = params["SEED"]
+
     if 'gwas' in params['data']:
 
         params_b = {'DA': {'k': [15]},
                     'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 10}}
 
         sdata_gwas = gwas_simulated_data(prop_tc=0.05,
-                                         pca_path='/content/CompBioAndSimulated_Datasets/data/tgp_pca2.txt')
+                                         pca_path='/content/CompBioAndSimulated_Datasets/data/tgp_pca2.txt',
+                                         seed=params['SEED'])
         X, y, y01, treatement_columns, treatment_effects, group = sdata_gwas.generate_samples()
         # Train and Test split use the same seed
-        # NEW
-        baselines_results, exp_time, f1_test = baselines(['DA', "CEVAE"], pd.DataFrame(X), y01, params_b,
-                                                         TreatCols=treatement_columns, timeit=True,
-                                                         seed=params['SEED'])  # 'CEVAE',
-        # END NEW
+        params['baselines'] = trykey(params, 'baselines', False)
+        if params['baselines']:
+            baselines_results, exp_time, f1_test = baselines(params['baselines_list'], pd.DataFrame(X), y01, params_b,
+                                                             TreatCols=treatement_columns, timeit=True,
+                                                             seed=SEED)
+        else:
+            baselines_results, exp_time, f1_test = baselines(['noise'], pd.DataFrame(X), y01, params_b,
+                                                             TreatCols=treatement_columns, timeit=True,
+                                                             seed=SEED)
+
         start_time = time.time()
         X_train, X_test, y_train, y_test = train_test_split(X, y01, test_size=0.33, random_state=SEED)
         print('... Target - proportion of 1s', np.sum(y01) / len(y01))
@@ -63,25 +69,22 @@ def main(config_path):
         params['pos_weight_y'] = trykey(params,'pos_weight_y',1)
         params['hidden1'] = trykey(params,'hidden1',64)
         params['hidden2'] = trykey(params,'hidden2',8)
-        cate_m3e2, f1 = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features,
+        cate_m3e2, f1_test_ = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features,
                                 X1_cols, X2_cols)
         print('... CATE')
-        #cate = pd.DataFrame({'CATE_M3E2': cate_m3e2, 'True_Effect': treatment_effects[treatement_columns]})
-        #print(cate)
-        #dif = cate_m3e2 - treatment_effects[treatement_columns]
-        #print('MAE', np.abs(dif).mean())
         baselines_results['M3E2'] = cate_m3e2
-        exp_time.append(time.time()-start_time)
-        f1_test.append(0)
+        exp_time['M3E2'] = time.time() - start_time
+        f1_test['M3E2'] = f1_test_
         output = organize_output(baselines_results.copy(), treatment_effects[treatement_columns], exp_time, f1_test,
-                                 rep=rep)
+                                 rep=SEED)
         print(output)
 
+    #TODO: update here
     if 'copula' in params['data']:
         params_b = {'DA': {'k': [5]},
                     'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 5}}
 
-        sdata_copula = copula_simulated_data()
+        sdata_copula = copula_simulated_data(seed=params['SEED'])
         X, y, y01, treatement_columns, treatment_effects = sdata_copula.generate_samples()
 
         # NEW
@@ -93,7 +96,7 @@ def main(config_path):
         # END NEW
         start = time.time()
         X_train, X_test, y_train, y_test = train_test_split(X, y01, test_size=0.33, random_state=SEED)
-        print('... Target - proportion of 1s', np.sum(y01) / len(y01))
+        # print('... Target - proportion of 1s', np.sum(y01) / len(y01))
         # Split X1, X2 on GWAS
         X1_cols = []
         X2_cols = range(X.shape[1] - len(treatement_columns))
@@ -116,7 +119,10 @@ def main(config_path):
         print(
             "ERRROR! \nDataset not recognized. \nChange the parameter data in your config.yaml file to gwas or copula.")
 
-    return output
+    name = 'output_' + params['data'][0] + '_' + params['id'] + '_dataseed' + str(params['SEED']) + '.csv'
+    output['dataseed']=params['SEED']
+    return output, name
+
 
 def trykey(params,key,default):
     try:
@@ -134,6 +140,7 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
         y: 01 outcome
         causes: name of the potential causes
     """
+
     if TreatCols is None:
         TreatCols = list(range(X.shape[1]))
 
@@ -154,7 +161,6 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
     times, f1_test = {}, {}
 
     if 'DA' in BaselinesList:
-        #print('\n\nBaseline: DA')
         start_time = time.time()
         from deconfounder import deconfounder_algorithm as DA
         ParamsList['DA']['k'] = trykey(ParamsList['DA'],'k',15) # if exploring multiple latent sizes
@@ -166,12 +172,11 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
             model_da = DA(X_train, X_test, y_train, y_test, k, print_=False)
             ParamsList['DA']['class_weight'] = trykey(ParamsList['DA'], 'class_weight', {0:1,1:1})
             coef, coef_continuos, roc, f1_test['DA'] = model_da.fit(class_weight=ParamsList['DA']['class_weight'])
-            coef_table[coln] = coef_continuos[0:len(TreatCols)]
+            coef_table[coln] = coef_continuos[TreatCols]
         times['DA'] = time.time() - start_time
         print('\nDone!')
 
     if 'BART' in BaselinesList:
-        #print('\n\nLearner: BART')
         start_time = time.time()
         from bart import BART as BART
         model_bart = BART(X_train01, X_test01, y_train, y_test)
@@ -230,27 +235,25 @@ def organize_output(experiments, true_effect, exp_time=None, f1_scores=None, rep
     """
     Treatments = experiments['causes']
     experiments.set_index('causes', inplace=True)
+    experiments['TrueTreat'] = true_effect
     Treatments_cate = np.transpose(experiments)
     BaselinesNames = experiments.columns
-    experiments['TrueTreat'] = true_effect
     mae = []
     for col in BaselinesNames:
         dif = np.abs(experiments[col] - experiments['TrueTreat'])
         mae.append(np.nanmean(dif))
-
     output = pd.DataFrame({'Method': BaselinesNames, 'MAE': mae})
     exp_time['TrueTreat'] = 0
-    if exp_time is not None:
-        output['Time(s)'] = [exp_time[m] for m in output['Method'].values]
+    f1_scores['TrueTreat'] = 0
     if f1_scores is not None:
         output['F1_Test'] = [f1_scores[m] for m in output['Method'].values]
+    if exp_time is not None:
+        output['Time(s)'] = [exp_time[m] for m in output['Method'].values]
+
     output['rep'] = rep
 
     out = pd.DataFrame(Treatments_cate, columns=Treatments)
     out.reset_index(inplace=True, drop=True)
-
-    #TODO: add number of treatments, n, confounders
-    #better: save files per setting, run together for plots?
 
     return pd.concat((output, out), 1)
 
@@ -259,7 +262,14 @@ if __name__ == "__main__":
     start_time = time.time()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Cuda Availble:", torch.cuda.is_available(), " device: ", device)
-    main(config_path=sys.argv[1])
+    for i in range(2):
+        if i == 0:
+            output, name = main(config_path='/content/config1.yaml', seed_=i)
+        else:
+            output_, name = main(config_path='/content/config1.yaml', seed_=i)
+            output = pd.concat([output, output_], 0, ignore_index=True)
+
+    output.to_csv(name)
     end_time = time.time() - start_time
     end_time_m = end_time / 60
     end_time_h = end_time_m / 60
