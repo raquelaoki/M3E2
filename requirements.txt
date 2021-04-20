@@ -8,6 +8,6 @@ statsmodels
 jupyterlmod
 torch==1.8.1
 tensorflow_cpu==2.4.1
-tensorflow_probability==0.12.1
+tensorflow_probability
 pyyaml
 tqdm
