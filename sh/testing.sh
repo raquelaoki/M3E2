@@ -18,3 +18,4 @@ source env/bin/activate
 python testing_slurm.py
 
 echo 'DONE!'
+
