@@ -1,9 +1,10 @@
 #!/bin/bash
 #SBATCH --time=00:15:00
-#SBATCH --account=def-ester
+#SBATCH --account=rrg-ester
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=1024M
+#SBATCH --output=slurm/%x-%j.out
 
 echo 'Starting ....'
 echo 'not using #SBATCH --gres=gpu:p100:1'
@@ -18,4 +19,3 @@ python testing_slurm.py
 
 echo 'SUCESS, NOW LOOK FOR FILE'
 
-#SBATCH -o /slurm/output.%a.out
