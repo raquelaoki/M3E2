@@ -29,7 +29,8 @@ if __name__ == "__main__":
     if colab:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print("Cuda Availble:", torch.cuda.is_available(), " device: ", device)
-        name = 'NEW_SLRUM_TEST_FILE.csv'
+        name = 'output/NEW_SLRUM_TEST_FILE.csv'
+        output = pd.DataFrame({'a':[1,2], 'b':[3,4]})
         output.to_csv(name)
     end_time = time.time() - start_time
     end_time_m = end_time / 60
