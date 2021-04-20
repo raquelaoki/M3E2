@@ -8,10 +8,9 @@ from sklearn.model_selection import train_test_split
 import torch
 
 sys.path.insert(0, 'src/')
-sys.path.insert(0, 'bartpy/')  # https://github.com/JakeColtman/bartpy
-sys.path.insert(0, 'bartpy/')
+#sys.path.insert(0, 'bartpy/')  # https://github.com/JakeColtman/bartpy
 sys.path.insert(0, 'ParKCa/src/')
-from ParKCa.src.train import *
+#from ParKCa.src.train import *
 from CompBioAndSimulated_Datasets.simulated_data_multicause import *
 import model_m3e2 as m3e2
 
