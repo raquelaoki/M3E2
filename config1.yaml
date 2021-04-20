@@ -1,11 +1,11 @@
 #Parameters
 parameters:
-    SEED: 22 #122
     data: ['gwas'] #gwas, copula
-    n_sample: 10000
-    n_covariates: 100
-    model: 'm3e2' #MMoE or MMoEEx (MAML)
-    id: 'testing' #description
+    n_sample: 100
+    n_covariates: 995
+    n_treatments: 5
+    model: 'm3e2'
+    id: 'config1a'
     suffle: True
     best_validation_test: True
     batch_size: 500
@@ -25,5 +25,4 @@ parameters:
     type_treatment: 'binary' #continuous, binary
     type_target: 'binary' #continuous, binary
     baselines: True
-    baselines_list: ['DA']
-
+    baselines_list: ['DA','CEVAE']
