@@ -214,6 +214,7 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
                             epochs=ParamsList['CEVAE']['epochs'],
                             batch=ParamsList['CEVAE']['batch'],
                             z_dim=ParamsList['CEVAE']['z_dim'])
+        print('DONE INITIALIZATION')
         coef_table['CEVAE'], f1_test['CEVAE'] = model_cevae.fit_all(print_=False)
         times['CEVAE'] = time.time() - start_time
         print('\nDone!')
