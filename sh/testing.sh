@@ -9,12 +9,11 @@
 echo 'Starting ....'
 echo 'not using #SBATCH --gres=gpu:p100:1'
 
-module load python/3.8 cuda cudnn
+module load python/3.7 cuda cudnn
 
-SOURCEDIR= $HOME/M3E2
+SOURCEDIR= ~/projects/rrg-ester/raoki/M3E2
 
-source $HOME/M3E2/env/bin/activate
-
+source env/bin/activate
 python testing_slurm.py
 
 echo 'SUCESS, NOW LOOK FOR FILE'
