@@ -260,15 +260,21 @@ def organize_output(experiments, true_effect, exp_time=None, f1_scores=None):
     return pd.concat((output, out), 1)
 
 
-colab = True
-arg = {'config_path': '/content/config2.yaml',
+colab = False
+notebook = True
+arg = {'config_path': 'config1.yaml',
        'seed_models': 10,
        'seed_data': 5,
        }
+if colab:
+    arg['path'] = '/content/'
+    arg['config_path'] = arg['path']+arg['config_path']
+else:
+    arg['path'] = ''
 
 if __name__ == "__main__":
     start_time = time.time()
-    if colab:
+    if notebook:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print("Cuda Availble:", torch.cuda.is_available(), " device: ", device)
         for j in range(arg['seed_data']):
