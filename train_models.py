@@ -269,6 +269,7 @@ arg = {'config_path': 'config1.yaml',
 if colab:
     arg['path'] = '/content/'
     arg['config_path'] = arg['path']+arg['config_path']
+
 else:
     arg['path'] = ''
 
@@ -286,6 +287,7 @@ if __name__ == "__main__":
                 else:
                     output_, name = main(config_path=arg['config_path'], seed_models=i, seed_data=j)
                     output = pd.concat([output, output_], 0, ignore_index=True)
+        output_path = arg['path']
     else:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print("Cuda Availble:", torch.cuda.is_available(), " device: ", device)
@@ -298,8 +300,9 @@ if __name__ == "__main__":
                 else:
                     output_, name = main(config_path=sys.argv[1], seed_models=i, seed_data=j)
                     output = pd.concat([output, output_], 0, ignore_index=True)
+        output_path = 'output/'
 
-    output.to_csv(name)
+    output.to_csv(output_path+name)
     end_time = time.time() - start_time
     end_time_m = end_time / 60
     end_time_h = end_time_m / 60
