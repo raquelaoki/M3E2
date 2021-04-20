@@ -41,7 +41,8 @@ def main(config_path, seed_models, seed_data):
                                          pca_path='/content/CompBioAndSimulated_Datasets/data/tgp_pca2.txt',
                                          seed=seed_data,
                                          n_units=params['n_sample'],
-                                         n_causes=params["n_treatments"] + params['n_covariates'])
+                                         n_causes=params["n_treatments"] + params['n_covariates'],
+                                         true_causes=params["n_treatments"])
         X, y, y01, treatement_columns, treatment_effects, group = sdata_gwas.generate_samples()
         # Train and Test split use the same seed
         params['baselines'] = trykey(params, 'baselines', False)
