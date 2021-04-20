@@ -5,6 +5,7 @@ __MACOSX
 CompBioAndSimulated_Datasets
 .idea
 .idea/
+slurm/
 ParKCa
 # Byte-compiled / optimized / DLL files
 __pycache__/
