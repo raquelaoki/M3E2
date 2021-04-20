@@ -5,7 +5,7 @@ parameters:
     n_covariates: 1000
     n_treatments: 5
     model: 'm3e2'
-    id: 'config1c'
+    id: 'config1e'
     suffle: True
     best_validation_test: True
     batch_size: 500
