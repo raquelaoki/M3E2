@@ -5,7 +5,7 @@ import numpy as np
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_auc_score, confusion_matrix, mean_squared_error, f1_score
+from sklearn.metrics import roc_auc_score, confusion_matrix, mean_squared_error, f1_score, accuracy_score
 
 
 class data_nn(object):
@@ -214,7 +214,8 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
             aux = np.nan()
         print('......', data_name[i], ': ', round(metric, 3))
         if data_name[i] == 'Test':
-            f1 = f1_score(y,y01_pred)
+            print('CHANGED FROM F1 TO ACC')
+            f1 = accuracy_score(y,y01_pred)
 
     print('Outcome Y', model.outcomeY.cpu().detach().numpy().reshape(-1))
     # print('Bias ', model.bias_y.cpu().detach().numpy())
