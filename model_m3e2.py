@@ -52,12 +52,12 @@ def metric_batch(pred, obs, auc=None, count=0, errorm='', type='binary'):
         y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
         if auc is None:
             try:
-                return roc_auc_score(obs, y01_pred)
+                return accuracy_score(obs, y01_pred)
             except ValueError:
                 return np.nan
         else:
             try:
-                auc += roc_auc_score(obs, y01_pred)
+                auc += accuracy_score(obs, y01_pred)
                 count += 1
                 return auc, count
             except ValueError:
@@ -130,12 +130,12 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
                                                               batch[1].reshape(-1),
                                                               metric_train_[j], metric_count_[j],
                                                               type=params['type_target'])
-            alpha = loss_batch_treats.cpu().detach().numpy() / loss_batch_target.cpu().detach().numpy()
+            #alpha = loss_batch_treats.cpu().detach().numpy() / loss_batch_target.cpu().detach().numpy()
             if X2_cols is not None:
                 loss_ae = ae_criterion(X2_reconstruct, batch[0][:, X2_cols].to(device))
-                beta = loss_batch_treats.cpu().detach().numpy() / loss_ae.cpu().detach().numpy()
+                #beta = loss_batch_treats.cpu().detach().numpy() / loss_ae.cpu().detach().numpy()
                 loss_ae_av += loss_ae.cpu().detach().numpy()
-                loss_batch = loss_batch_treats + loss_batch_target * alpha + loss_ae * beta
+                loss_batch = loss_batch_treats*params['loss_treat'] + loss_batch_target *params['loss_target']  + loss_ae * params['loss_da']
             else:
                 loss_batch = loss_batch_treats + loss_batch_target * alpha
             loss_batch.backward()
@@ -182,6 +182,8 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         # Printing
         if e % params['print'] == 0:
             if X2_cols is not None:
+                print('CHECKING LOSSES BEFORE WEIGHT:', loss_batch_treats.cpu().detach().numpy() , loss_batch_target.cpu().detach().numpy() ,loss_ae.cpu().detach().numpy() )
+                print('CHECKING LOSSES AFTER WEIGHT:', loss_batch_treats.cpu().detach().numpy()*params['loss_treat'] , loss_batch_target.cpu().detach().numpy() *params['loss_target']  , loss_ae.cpu().detach().numpy() * params['loss_da'])
                 print('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), round(loss_train_ae[e], 2), 'metric ',
                       metric_train[e],
                       '\n... Val: loss ', round(loss_val[e], 2), 'metric ', metric_val[e])
@@ -364,7 +366,7 @@ class M3E2(nn.Module):
             # aux = self.relu(aux)
             out = torch.matmul(aux, self.outcomeY)
             # bias is making all coef be positive
-            # out = out.add(self.bias_y)
+            out = out.add(self.bias_y)
             output = torch.cat((output, out.reshape(-1, 1)), 1)
 
         if self.X2_cols is not None:
