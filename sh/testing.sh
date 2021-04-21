@@ -5,11 +5,11 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=1024M
 #SBATCH --output=slurm/%x-%j.out
+#SBATCH --gres=gpu:p100:1
 
 echo 'Starting ....'
-echo 'not using #SBATCH --gres=gpu:p100:1'
 
-module load python/3.7 cuda cudnn
+module load --ignore-cache python/3.7 cuda cudnn
 
 SOURCEDIR= ~/projects/rrg-ester/raoki/M3E2
 
