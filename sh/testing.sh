@@ -3,7 +3,7 @@
 #SBATCH --account=rrg-ester
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=1024M
+#SBATCH --mem=4000M
 #SBATCH --output=slurm/%x-%j.out
 #SBATCH --gres=gpu:p100:1
 

@@ -1,11 +1,11 @@
 #Parameters
 parameters:
-    data: ['gwas'] #gwas, copula
-    n_sample: 10000
-    n_covariates: 1000
-    n_treatments: 10
+    data: ['copula'] #gwas, copula
+    n_sample: 100
+    n_covariates: 25
+    n_treatments: 4
     model: 'm3e2'
-    id: 'config1f'
+    id: 'config2f'
     suffle: True
     best_validation_test: True
     batch_size: 500
