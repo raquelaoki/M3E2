@@ -51,7 +51,10 @@ def metric_batch(pred, obs, auc=None, count=0, errorm='', type='binary'):
         y01_pred = sigmoid(Tensor(pred)).numpy()
         y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
         if auc is None:
-            return roc_auc_score(obs, y01_pred)
+            try:
+                return roc_auc_score(obs, y01_pred)
+            except ValueError:
+                return np.nan
         else:
             try:
                 auc += roc_auc_score(obs, y01_pred)
