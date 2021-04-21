@@ -35,4 +35,14 @@ if __name__ == "__main__":
     end_time = time.time() - start_time
     end_time_m = end_time / 60
     end_time_h = end_time_m / 60
+    import torch
+    from torch import Tensor
+
+    print('Available devices ', torch.cuda.device_count())
+    print(torch.cuda.get_device_name(0))
+    print(torch.cuda.current_device())
+    cuda = torch.device(0)
+    a = [0, 1, 2]
+    b = Tensor(a).cuda()
+    print(a, b)
     print("Time ------ {} min / {} hours ------".format(end_time_m, end_time_h))

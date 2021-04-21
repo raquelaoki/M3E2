@@ -3,11 +3,12 @@
 #SBATCH --account=rrg-ester
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=1024M
+#SBATCH --mem=4000M
 #SBATCH --output=slurm/%x-%j.out
+#SBATCH --gres=gpu:p100:1
 
 echo 'Starting ....'
-echo 'not using #SBATCH --gres=gpu:p100:1'
+
 
 module load python/3.7 cuda cudnn
 
