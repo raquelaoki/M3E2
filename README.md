@@ -25,9 +25,9 @@ Running an interactive section of jupyter notebook:
 2. Run:
 ```bash
 source env/bin/activate
-salloc --time=1:0:0 --ntasks=1 --cpus-per-task=2 --mem-per-cpu=1024M --account=def-ester srun $VIRTUAL_ENV/bin/notebook.sh
+salloc --time=1:0:0 --gres=gpu:1 --ntasks=1 --cpus-per-task=1 --mem=4000M --account=rrg-ester srun $VIRTUAL_ENV/bin/notebook.sh
 ```
-3. In your local machine, run: 
+3. In your local machine, run (example, ports might change): 
 ```bash
 ssh -L 8888:cdr767.int.cedar.computecanada.ca:8888 USER@cedar.computecanada.ca
 ```
