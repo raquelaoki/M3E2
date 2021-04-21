@@ -8,9 +8,9 @@ from sklearn.model_selection import train_test_split
 import torch
 
 sys.path.insert(0, 'src/')
-#sys.path.insert(0, 'bartpy/')  # https://github.com/JakeColtman/bartpy
+# sys.path.insert(0, 'bartpy/')  # https://github.com/JakeColtman/bartpy
 sys.path.insert(0, 'ParKCa/src/')
-#from ParKCa.src.train import *
+# from ParKCa.src.train import *
 from CompBioAndSimulated_Datasets.simulated_data_multicause import *
 import model_m3e2 as m3e2
 
@@ -219,6 +219,9 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
         times['CEVAE'] = time.time() - start_time
         print('\nDone!')
 
+    if 'noise' in BaselinesList:
+        coef_table['noise'], f1_test['noise'] = np.random.rand(-1, 1, len(TreatCols)), np.random.rand(0, 1, 1)[0]
+
     if not timeit:
         return coef_table
     else:
@@ -268,7 +271,7 @@ arg = {'config_path': 'config1.yaml',
        }
 if colab:
     arg['path'] = '/content/'
-    arg['config_path'] = arg['path']+arg['config_path']
+    arg['config_path'] = arg['path'] + arg['config_path']
 
 else:
     arg['path'] = ''
@@ -279,9 +282,9 @@ if __name__ == "__main__":
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print("Cuda Availble:", torch.cuda.is_available(), " device: ", device)
         for j in range(arg['seed_data']):
-            print('Data',j)
+            print('Data', j)
             for i in range(arg['seed_models']):
-                print('Models',i)
+                print('Models', i)
                 if i == 0 and j == 0:
                     output, name = main(config_path=arg['config_path'], seed_models=i, seed_data=j)
                 else:
@@ -289,9 +292,9 @@ if __name__ == "__main__":
                     output = pd.concat([output, output_], 0, ignore_index=True)
         output_path = arg['path']
     else:
-        seed_data= int(sys.argv[3])
-        seed_models= int(sys.argv[2])
-        print('SEEDS', seed_data,' data simulations and ',seed_models,' models repetitions')
+        seed_data = int(sys.argv[3])
+        seed_models = int(sys.argv[2])
+        print('SEEDS', seed_data, ' data simulations and ', seed_models, ' models repetitions')
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print("Cuda Availble:", torch.cuda.is_available(), " device: ", device)
         for j in range(seed_data):
@@ -305,7 +308,7 @@ if __name__ == "__main__":
                     output = pd.concat([output, output_], 0, ignore_index=True)
         output_path = 'output/'
 
-    output.to_csv(output_path+name)
+    output.to_csv(output_path + name)
     end_time = time.time() - start_time
     end_time_m = end_time / 60
     end_time_h = end_time_m / 60
