@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --time=00:15:00
+#SBATCH --time=00:60:00
 #SBATCH --account=rrg-ester
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=4000M
 #SBATCH --output=slurm/%x-%j.out
-#SBATCH --gres=gpu:p100:1
+#SBATCH --gres=gpu:1
 
 echo 'Starting ....'
 
@@ -15,7 +15,7 @@ SOURCEDIR= ~/projects/rrg-ester/raoki/M3E2
 
 source env/bin/activate
 
-python testing_slurm.py
+python train_models.py config1.yaml 2 1
 
 echo 'DONE!'
 

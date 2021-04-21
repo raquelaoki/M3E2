@@ -1,14 +1,14 @@
 #Parameters
 parameters:
     data: ['gwas'] #gwas, copula
-    n_sample: 100
+    n_sample: 2500
     n_covariates: 995
     n_treatments: 5
     model: 'm3e2'
     id: 'config1a'
     suffle: True
     best_validation_test: True
-    batch_size: 500
+    batch_size: 100
     max_epochs: 200
     print: 100
     decay: 40

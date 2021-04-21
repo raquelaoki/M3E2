@@ -37,7 +37,7 @@ def main(config_path, seed_models, seed_data):
         prop = params["n_treatments"] / (params["n_treatments"] + params['n_covariates'])
 
         sdata_gwas = gwas_simulated_data(prop_tc=prop,
-                                         pca_path='/content/CompBioAndSimulated_Datasets/data/tgp_pca2.txt',
+                                         pca_path='CompBioAndSimulated_Datasets/data/tgp_pca2.txt',
                                          seed=seed_data,
                                          n_units=params['n_sample'],
                                          n_causes=params["n_treatments"] + params['n_covariates'],
@@ -261,7 +261,7 @@ def organize_output(experiments, true_effect, exp_time=None, f1_scores=None):
 
 
 colab = False
-notebook = True
+notebook = False
 arg = {'config_path': 'config1.yaml',
        'seed_models': 10,
        'seed_data': 5,
@@ -289,11 +289,14 @@ if __name__ == "__main__":
                     output = pd.concat([output, output_], 0, ignore_index=True)
         output_path = arg['path']
     else:
+        seed_data= int(sys.argv[3])
+        seed_models= int(sys.argv[2])
+        print('SEEDS', seed_data,' data simulations and ',seed_models,' models repetitions')
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print("Cuda Availble:", torch.cuda.is_available(), " device: ", device)
-        for j in range(sys.argv[3]):
+        for j in range(seed_data):
             print('Data', j)
-            for i in range(sys.argv[2]):
+            for i in range(seed_models):
                 print('Models', i)
                 if i == 0:
                     output, name = main(config_path=sys.argv[1], seed_models=i, seed_data=j)

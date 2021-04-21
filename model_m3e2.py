@@ -217,7 +217,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
     print('Outcome Y', model.outcomeY.cpu().detach().numpy().reshape(-1))
     # print('Bias ', model.bias_y.cpu().detach().numpy())
 
-    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1)*(-1), f1
+    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1), f1
 
 
 class M3E2(nn.Module):
