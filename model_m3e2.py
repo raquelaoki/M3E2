@@ -6,6 +6,7 @@ from torch import Tensor
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, confusion_matrix, mean_squared_error, f1_score, accuracy_score
+from sklearn.metrics import precision_score
 
 
 class data_nn(object):
@@ -24,14 +25,14 @@ class data_nn(object):
         if X2_cols is None:
             X2_cols = range(X_train.shape[1])
         self.X2_cols = X2_cols
-        self.treat_weights = 1 / (self.T_train.sum(0) / self.T_train.shape[0])
+        # self.treat_weights = 1 / (self.T_train.sum(0) / self.T_train.shape[0])
         # print('Weights', self.treat_weights)
-
+        # self.treat_weights = rep()
         print('M3E2: Train Shape ', self.X_train.shape, self.T_train.shape)
 
     def loader(self, shuffle=True, batch=250, seed=1):
         X_train, X_val, y_train, y_val, T_train, T_val = train_test_split(self.X_train, self.y_train, self.T_train,
-                                                                       test_size=0.15, random_state=seed)
+                                                                          test_size=0.15, random_state=seed)
         ''' Creating TensorDataset to use in the DataLoader '''
         dataset_train = TensorDataset(Tensor(X_train), Tensor(y_train), Tensor(T_train))
         dataset_test = TensorDataset(Tensor(self.X_test), Tensor(self.y_test), Tensor(self.T_test))
@@ -69,6 +70,13 @@ def metric_batch(pred, obs, auc=None, count=0, errorm='', type='binary'):
             return mean_squared_error(obs, pred), 1
 
 
+def metric_precision(pred, obs):
+    sigmoid = nn.Sigmoid()
+    y01_pred = sigmoid(Tensor(pred)).numpy()
+    y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
+    return precision_score(obs, y01_pred)
+
+
 def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features, X1_cols, X2_cols=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # X, y, T = next(iter(loader_train))
@@ -96,6 +104,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
 
     loss_train, loss_val = np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
     metric_train, metric_val = [], []  # np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
+    metric_train_p, metric_val_p = [], []  # np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
     loss_train_ae, loss_val_ae = np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
 
     best_val_metric = 0
@@ -104,6 +113,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
 
     for e in range(params['max_epochs']):
         metric_train_, metric_val_ = np.zeros(model.num_treat + 1), np.zeros(model.num_treat + 1)
+        metric_train_p_, metric_val_p_ = np.zeros(model.num_treat ), np.zeros(model.num_treat )
         torch.cuda.empty_cache()
         # for i, batch in enumerate(tqdm(train_loader)):
         loss_av, loss_ae_av = 0, 0
@@ -122,6 +132,8 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
                                                                   batch[2][:, j].reshape(-1),
                                                                   metric_train_[j], metric_count_[j],
                                                                   type=params['type_treatment'])
+                metric_train_p_[j] = metric_precision(ty_train_pred[:, j].cpu().detach().numpy(),
+                                                                  batch[2][:, j].reshape(-1))
             # For target
             j = model.num_treat
             loss_batch_target = criterion[j](ty_train_pred[:, j].reshape(-1),
@@ -130,12 +142,13 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
                                                               batch[1].reshape(-1),
                                                               metric_train_[j], metric_count_[j],
                                                               type=params['type_target'])
-            #alpha = loss_batch_treats.cpu().detach().numpy() / loss_batch_target.cpu().detach().numpy()
+            # alpha = loss_batch_treats.cpu().detach().numpy() / loss_batch_target.cpu().detach().numpy()
             if X2_cols is not None:
                 loss_ae = ae_criterion(X2_reconstruct, batch[0][:, X2_cols].to(device))
-                #beta = loss_batch_treats.cpu().detach().numpy() / loss_ae.cpu().detach().numpy()
+                # beta = loss_batch_treats.cpu().detach().numpy() / loss_ae.cpu().detach().numpy()
                 loss_ae_av += loss_ae.cpu().detach().numpy()
-                loss_batch = loss_batch_treats*params['loss_treat'] + loss_batch_target *params['loss_target']  + loss_ae * params['loss_da']
+                loss_batch = loss_batch_treats * params['loss_treat'] + loss_batch_target * params[
+                    'loss_target'] + loss_ae * params['loss_da']
             else:
                 loss_batch = loss_batch_treats + loss_batch_target * alpha
             loss_batch.backward()
@@ -147,6 +160,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
             loss_train_ae[e] = loss_ae_av / i
         metric_count_ = [np.max([i, 1]) for i in metric_count_]
         metric_train.append(np.divide(metric_train_, metric_count_))
+        metric_train_p.append(metric_train_p_)
 
         # Validation
         X_val, y_val, T_val = next(iter(loader_val))
@@ -166,11 +180,14 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
                 metric_val_[j] = metric_batch(ty_val_pred[:, j].cpu().detach().numpy(),
                                               T_val[:, j].reshape(-1), errorm=errorm,
                                               type=params['type_treatment'])
+                metric_val_p_[j] = metric_precision(ty_val_pred[:, j].cpu().detach().numpy(),
+                                                    y_val.reshape(-1))
         if X2_cols is not None:
             loss_val_ae[e] = ae_criterion(X2_reconstruct_val, X_val[:, X2_cols].to(device)).cpu().detach().numpy()
 
         # Best model saved
         metric_val.append(metric_val_)
+        metric_val_p.append(metric_val_p_) #precision
         if params["best_validation_test"]:
             # Metric based on target
             if np.sum(metric_val[e][-1]) > best_val_metric:
@@ -182,11 +199,15 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         # Printing
         if e % params['print'] == 0:
             if X2_cols is not None:
-                print('CHECKING LOSSES BEFORE WEIGHT:', loss_batch_treats.cpu().detach().numpy() , loss_batch_target.cpu().detach().numpy() ,loss_ae.cpu().detach().numpy() )
-                print('CHECKING LOSSES AFTER WEIGHT:', loss_batch_treats.cpu().detach().numpy()*params['loss_treat'] , loss_batch_target.cpu().detach().numpy() *params['loss_target']  , loss_ae.cpu().detach().numpy() * params['loss_da'])
-                print('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), round(loss_train_ae[e], 2), 'metric ',
-                      metric_train[e],
-                      '\n... Val: loss ', round(loss_val[e], 2), 'metric ', metric_val[e])
+                print('CHECKING LOSSES BEFORE WEIGHT:', loss_batch_treats.cpu().detach().numpy(),
+                      loss_batch_target.cpu().detach().numpy(), loss_ae.cpu().detach().numpy())
+                print('CHECKING LOSSES AFTER WEIGHT:', loss_batch_treats.cpu().detach().numpy() * params['loss_treat'],
+                      loss_batch_target.cpu().detach().numpy() * params['loss_target'],
+                      loss_ae.cpu().detach().numpy() * params['loss_da'])
+                print('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), 'metric \n',metric_train[e])
+                print(metric_train_p[e])
+                print('... Val: loss ', round(loss_val[e], 2), 'metric \n', metric_val[e])
+                print(metric_val_p[e])
             else:
                 print('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), 'metric ', metric_train[e],
                       '\n... Val: loss ', round(loss_val[e], 2), 'metric ', metric_val[e])
@@ -208,19 +229,18 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         y01_pred = sigmoid(ty_pred[:, model.num_treat]).cpu().detach().numpy()
         y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
         try:
-            metric = metric_batch(y, y01_pred, type=params['type_target'])
-            #print(confusion_matrix(y, y01_pred))
+            metric = metric_batch(y,y01_pred, type=params['type_target'])
+            # print(confusion_matrix(y, y01_pred))
         except ValueError:
             aux = np.nan()
-        print('......', data_name[i], ': ', round(metric, 3))
+        print('......', data_name[i], ': ', round(metric, 3), ' and precision:', precision_score(y01_pred,y))
         if data_name[i] == 'Test':
             print('CHANGED FROM F1 TO ACC')
-            f1 = accuracy_score(y,y01_pred)
+            f1 = accuracy_score(y, y01_pred)
 
-    print('Outcome Y', model.outcomeY.cpu().detach().numpy().reshape(-1))
-    # print('Bias ', model.bias_y.cpu().detach().numpy())
+    #print('Outcome Y', model.outcomeY.cpu().detach().numpy().reshape(-1))
 
-    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1), f1
+    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1)*(-1), f1
 
 
 class M3E2(nn.Module):
@@ -364,10 +384,12 @@ class M3E2(nn.Module):
             # Train
             HY = self.relu(HY)
             aux = torch.cat((treat_assignment, HY), 1)
-            # aux = self.relu(aux)
+            aux = self.relu(aux)
             out = torch.matmul(aux, self.outcomeY)
             # bias is making all coef be positive
-            out = out.add(self.bias_y)
+            # out = out.add(self.bias_y)
+            # print(out)
+            out = self.tahn(out)
             output = torch.cat((output, out.reshape(-1, 1)), 1)
 
         if self.X2_cols is not None:

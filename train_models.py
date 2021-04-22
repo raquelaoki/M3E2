@@ -65,7 +65,8 @@ def main(config_path, seed_models, seed_data):
                                 treatment_effects[treatement_columns], X1_cols, X2_cols)
         loader_train, loader_val, loader_test, num_features = data_nnl.loader(params['suffle'], params['batch_size'],
                                                                               seed_models)
-        params['pos_weights'] = data_nnl.treat_weights
+        params['pos_weights'] = np.repeat(params['pos_weights'], len(treatement_columns))
+        print('WEIGHTS TREAT', params['pos_weights'])
         params['pos_weight_y'] = trykey(params, 'pos_weight_y', 1)
         params['hidden1'] = trykey(params, 'hidden1', 64)
         params['hidden2'] = trykey(params, 'hidden2', 8)
@@ -220,8 +221,8 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
         print('\nDone!')
 
     if 'noise' in BaselinesList:
-        coef_table['noise'], f1_test['noise'] = np.random.rand(-1, 1, len(TreatCols)), np.random.rand(0, 1, 1)[0]
-
+        coef_table['noise'], f1_test['noise'] = np.random.uniform(-1, 1, len(TreatCols)), np.random.uniform(0, 1, 1)[0]
+        times['noise'] = 0
     if not timeit:
         return coef_table
     else:
@@ -266,13 +267,12 @@ def organize_output(experiments, true_effect, exp_time=None, f1_scores=None):
 colab = False
 notebook = False
 arg = {'config_path': 'config1.yaml',
-       'seed_models': 10,
-       'seed_data': 5,
+       'seed_models': 3,
+       'seed_data': 2,
        }
 if colab:
     arg['path'] = '/content/'
     arg['config_path'] = arg['path'] + arg['config_path']
-
 else:
     arg['path'] = ''
 
