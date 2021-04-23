@@ -197,7 +197,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
             if np.sum(metric_val[e][-1]) > best_val_metric:
                 best_epoch = e
                 best_val_metric = np.sum(metric_val[e][-1])
-                path = 'm3e2_' + params['id'] + 'best.pth'
+                path = 'savedmodels/m3e2_' + params['id'] + 'best.pth'
                 torch.save(model.state_dict(), path)
 
         # Printing
