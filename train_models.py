@@ -92,7 +92,7 @@ def main(config_path, seed_models, seed_data):
             baselines_results, exp_time, f1_test = baselines(['noise'], pd.DataFrame(X), y01, params_b,
                                                              TreatCols=treatement_columns, timeit=True,
                                                              seed=seed_models)
-        start = time.time()
+        start_time = time.time()
         X_train, X_test, y_train, y_test = train_test_split(X, y01, test_size=0.33, random_state=seed_models)
         X1_cols = []
         X2_cols = range(X.shape[1] - len(treatement_columns))
