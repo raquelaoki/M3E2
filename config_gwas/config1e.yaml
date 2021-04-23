@@ -8,17 +8,18 @@ parameters:
     id: 'config1e'
     suffle: True
     best_validation_test: True
-    batch_size: 500
-    max_epochs: 200
-    print: 100
-    decay: 40
-    alpha: 0.0001 #decay downgrad
-    gamma: 0.9 #Adam decay
+    batch_size: 100
+    max_epochs: 100
+    print: 50
+    decay: 20
+    alpha: 0.01 #decay downgrad
+    gamma: 0.8 #Adam decay
     lr: 0.001 #learning rate
-    wd: 0.005 #weight_decay
-    dropoutp: 0.25
-    pos_weight_y: 1.25
-    num_exp: 2
+    wd: 0.05 #weight_decay
+    dropoutp: 0.5
+    pos_weight_y: 1
+    pos_weights: 9
+    num_exp: 4
     units_exp: 4
     hidden1: 64
     hidden2: 8
@@ -26,3 +27,7 @@ parameters:
     type_target: 'binary' #continuous, binary
     baselines: True
     baselines_list: ['DA','CEVAE']
+    loss_target: 3
+    loss_da: 3
+    loss_treat: 1
+    loss_reg: 1

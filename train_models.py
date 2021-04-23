@@ -66,7 +66,6 @@ def main(config_path, seed_models, seed_data):
         loader_train, loader_val, loader_test, num_features = data_nnl.loader(params['suffle'], params['batch_size'],
                                                                               seed_models)
         params['pos_weights'] = np.repeat(params['pos_weights'], len(treatement_columns))
-        print('WEIGHTS TREAT', params['pos_weights'])
         params['pos_weight_y'] = trykey(params, 'pos_weight_y', 1)
         params['hidden1'] = trykey(params, 'hidden1', 64)
         params['hidden2'] = trykey(params, 'hidden2', 8)
@@ -97,13 +96,12 @@ def main(config_path, seed_models, seed_data):
         X_train, X_test, y_train, y_test = train_test_split(X, y01, test_size=0.33, random_state=seed_models)
         X1_cols = []
         X2_cols = range(X.shape[1] - len(treatement_columns))
-        # TODO: add other baselines here to run everything on the same train/testing sets
 
         data_nnl = m3e2.data_nn(X_train, X_test, y_train, y_test, treatement_columns,
                                 treatment_effects, X1_cols, X2_cols)
         loader_train, loader_val, loader_test, num_features = data_nnl.loader(params['suffle'], params['batch_size'],
                                                                               seed_models)
-        params['pos_weights'] = data_nnl.treat_weights
+        params['pos_weights'] = np.repeat(params['pos_weights'], len(treatement_columns))
         params['pos_weight_y'] = trykey(params, 'pos_weight_y', 1)
         params['hidden1'] = trykey(params, 'hidden1', 6)
         params['hidden2'] = trykey(params, 'hidden2', 6)
@@ -112,7 +110,7 @@ def main(config_path, seed_models, seed_data):
                                           num_features,
                                           X1_cols, X2_cols)
         print('... CATE')
-        cate = pd.DataFrame({'CATE_M3E2': cate_m3e2, 'True_Effect': treatment_effects})
+        #cate = pd.DataFrame({'CATE_M3E2': cate_m3e2, 'True_Effect': treatment_effects})
         baselines_results['M3E2'] = cate_m3e2
         exp_time['M3E2'] = time.time() - start_time
         f1_test['M3E2'] = f1_test_
@@ -220,9 +218,9 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
         times['CEVAE'] = time.time() - start_time
         print('\nDone!')
 
-    if 'noise' in BaselinesList:
-        coef_table['noise'], f1_test['noise'] = np.random.uniform(-1, 1, len(TreatCols)), np.random.uniform(0, 1, 1)[0]
-        times['noise'] = 0
+    # if 'noise' in BaselinesList:
+    #    coef_table['noise'], f1_test['noise'] = np.random.uniform(-1, 1, len(TreatCols)), np.random.uniform(0, 1, 1)[0]
+    #    times['noise'] = 0
     if not timeit:
         return coef_table
     else:
@@ -266,9 +264,9 @@ def organize_output(experiments, true_effect, exp_time=None, f1_scores=None):
 
 colab = False
 notebook = False
-arg = {'config_path': 'config1.yaml',
+arg = {'config_path': 'config2.yaml',
        'seed_models': 3,
-       'seed_data': 2,
+       'seed_data': 1,
        }
 if colab:
     arg['path'] = '/content/'
@@ -302,9 +300,9 @@ if __name__ == "__main__":
             for i in range(seed_models):
                 print('Models', i)
                 if i == 0:
-                    output, name = main(config_path=sys.argv[1], seed_models=i, seed_data=j)
+                    output, name = main(config_path=sys.argv[1], seed_models=i, seed_data=j + 5)
                 else:
-                    output_, name = main(config_path=sys.argv[1], seed_models=i, seed_data=j)
+                    output_, name = main(config_path=sys.argv[1], seed_models=i, seed_data=j + 5)
                     output = pd.concat([output, output_], 0, ignore_index=True)
         output_path = 'output/'
 

@@ -70,11 +70,14 @@ def metric_batch(pred, obs, auc=None, count=0, errorm='', type='binary'):
             return mean_squared_error(obs, pred), 1
 
 
-def metric_precision(pred, obs):
-    sigmoid = nn.Sigmoid()
-    y01_pred = sigmoid(Tensor(pred)).numpy()
-    y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
-    return precision_score(obs, y01_pred)
+def metric_precision(pred, obs, type='binary'):
+    if type == 'binary':
+        sigmoid = nn.Sigmoid()
+        y01_pred = sigmoid(Tensor(pred)).numpy()
+        y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
+        return precision_score(obs, y01_pred)
+    else:
+        return np.nan
 
 
 def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features, X1_cols, X2_cols=None):
@@ -113,7 +116,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
 
     for e in range(params['max_epochs']):
         metric_train_, metric_val_ = np.zeros(model.num_treat + 1), np.zeros(model.num_treat + 1)
-        metric_train_p_, metric_val_p_ = np.zeros(model.num_treat ), np.zeros(model.num_treat )
+        metric_train_p_, metric_val_p_ = np.zeros(model.num_treat), np.zeros(model.num_treat)
         torch.cuda.empty_cache()
         # for i, batch in enumerate(tqdm(train_loader)):
         loss_av, loss_ae_av = 0, 0
@@ -133,7 +136,8 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
                                                                   metric_train_[j], metric_count_[j],
                                                                   type=params['type_treatment'])
                 metric_train_p_[j] = metric_precision(ty_train_pred[:, j].cpu().detach().numpy(),
-                                                                  batch[2][:, j].reshape(-1))
+                                                      batch[2][:, j].reshape(-1),
+                                                      type=params['type_treatment'])
             # For target
             j = model.num_treat
             loss_batch_target = criterion[j](ty_train_pred[:, j].reshape(-1),
@@ -181,13 +185,13 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
                                               T_val[:, j].reshape(-1), errorm=errorm,
                                               type=params['type_treatment'])
                 metric_val_p_[j] = metric_precision(ty_val_pred[:, j].cpu().detach().numpy(),
-                                                    y_val.reshape(-1))
+                                                    y_val.reshape(-1), type=params['type_treatment'])
         if X2_cols is not None:
             loss_val_ae[e] = ae_criterion(X2_reconstruct_val, X_val[:, X2_cols].to(device)).cpu().detach().numpy()
 
         # Best model saved
         metric_val.append(metric_val_)
-        metric_val_p.append(metric_val_p_) #precision
+        metric_val_p.append(metric_val_p_)  # precision
         if params["best_validation_test"]:
             # Metric based on target
             if np.sum(metric_val[e][-1]) > best_val_metric:
@@ -204,7 +208,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
                 print('CHECKING LOSSES AFTER WEIGHT:', loss_batch_treats.cpu().detach().numpy() * params['loss_treat'],
                       loss_batch_target.cpu().detach().numpy() * params['loss_target'],
                       loss_ae.cpu().detach().numpy() * params['loss_da'])
-                print('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), 'metric \n',metric_train[e])
+                print('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), 'metric \n', metric_train[e])
                 print(metric_train_p[e])
                 print('... Val: loss ', round(loss_val[e], 2), 'metric \n', metric_val[e])
                 print(metric_val_p[e])
@@ -229,18 +233,18 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         y01_pred = sigmoid(ty_pred[:, model.num_treat]).cpu().detach().numpy()
         y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
         try:
-            metric = metric_batch(y,y01_pred, type=params['type_target'])
+            metric = metric_batch(y, y01_pred, type=params['type_target'])
             # print(confusion_matrix(y, y01_pred))
         except ValueError:
             aux = np.nan()
-        print('......', data_name[i], ': ', round(metric, 3), ' and precision:', precision_score(y01_pred,y))
+        print('......', data_name[i], ': ', round(metric, 3), ' and precision:', precision_score(y01_pred, y))
         if data_name[i] == 'Test':
             print('CHANGED FROM F1 TO ACC')
             f1 = accuracy_score(y, y01_pred)
 
-    #print('Outcome Y', model.outcomeY.cpu().detach().numpy().reshape(-1))
+    # print('Outcome Y', model.outcomeY.cpu().detach().numpy().reshape(-1))
 
-    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1)*(-1), f1
+    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1) * (-1), f1
 
 
 class M3E2(nn.Module):

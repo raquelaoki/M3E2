@@ -19,7 +19,7 @@ parameters:
     dropoutp: 0.5
     pos_weight_y: 1
     pos_weights: 9
-    num_exp: 2
+    num_exp: 4
     units_exp: 4
     hidden1: 64
     hidden2: 8
