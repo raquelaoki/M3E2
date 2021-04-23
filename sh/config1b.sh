@@ -3,7 +3,7 @@
 #SBATCH --account=rrg-ester
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=4000M
+#SBATCH --mem=8000M
 #SBATCH --output=slurm/%x-%j.out
 #SBATCH --gres=gpu:1
 
@@ -15,7 +15,7 @@ SOURCEDIR= ~/projects/rrg-ester/raoki/M3E2
 
 source env/bin/activate
 
-python train_models.py config_gwas/config1b.yaml 10 5
+python train_models.py config_gwas/config1b.yaml 10 4
 
 echo 'DONE!'
 

@@ -13,10 +13,11 @@ parameters:
     decay: 20
     alpha: 0.01 #decay downgrad
     gamma: 0.9 #Adam decay
-    lr: 0.001 #learning rate
+    lr: 0.0001 #learning rate
     wd: 0.05 #decay
     dropoutp: 0.25
-    pos_weight_y: 0.7
+    pos_weight_y: 0.5
+    pos_weight: [0.25, 1, 1,1]
     num_exp: 2
     units_exp: 4
     hidden1: 6

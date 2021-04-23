@@ -28,6 +28,12 @@ def main(config_path, seed_models, seed_data):
     # Fix Torch graph-level seed for reproducibility
     torch.manual_seed(seed_models)
 
+    if params['type_treatment']!='binary':
+        params['pos_weight_t'] = params['pos_weight']
+        PRINT('IM USING THE TREATMENT WEIGHTS')
+    else:
+        params['pos_weight_t'] = np.repeat(1,params['n_treatments'])
+
     if 'gwas' in params['data']:
 
         params_b = {'DA': {'k': [15]},
@@ -108,7 +114,7 @@ def main(config_path, seed_models, seed_data):
 
         cate_m3e2, f1_test_ = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns,
                                           num_features,
-                                          X1_cols, X2_cols)
+                                          X1_cols, X2_cols, use_bias_y=True)
         print('... CATE')
         #cate = pd.DataFrame({'CATE_M3E2': cate_m3e2, 'True_Effect': treatment_effects})
         baselines_results['M3E2'] = cate_m3e2

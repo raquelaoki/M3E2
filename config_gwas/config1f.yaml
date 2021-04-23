@@ -7,7 +7,6 @@ parameters:
     model: 'm3e2'
     id: 'config1f'
     suffle: True
-    suffle: True
     best_validation_test: True
     batch_size: 100
     max_epochs: 100

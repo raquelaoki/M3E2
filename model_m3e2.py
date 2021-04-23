@@ -80,12 +80,12 @@ def metric_precision(pred, obs, type='binary'):
         return 999
 
 
-def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features, X1_cols, X2_cols=None):
+def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features, X1_cols, X2_cols=None, use_bias_y=False):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # X, y, T = next(iter(loader_train))
     model = M3E2(data='gwas', num_treat=len(treatement_columns), num_exp=params['num_exp'],
                  num_features=num_features, dropoutp=params['dropoutp'], X1_cols=X1_cols, X2_cols=X2_cols,
-                 hidden1=params['hidden1'], hidden2=params['hidden2'])
+                 hidden1=params['hidden1'], hidden2=params['hidden2'], use_bias_y=use_bias_y)
     if params['type_treatment'] == 'binary':
         criterion = [nn.BCEWithLogitsLoss(pos_weight=torch.tensor(params['pos_weights'][i])) for i in
                      range(model.num_treat)]
@@ -130,7 +130,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
             optimizer.zero_grad()
             for j in range(model.num_treat):
                 loss_batch_treats += criterion[j](ty_train_pred[:, j].reshape(-1),
-                                                  batch[2][:, j].reshape(-1).to(device))
+                                                  batch[2][:, j].reshape(-1).to(device))*params['pos_weight_t'][j]
                 metric_train_[j], metric_count_[j] = metric_batch(ty_train_pred[:, j].cpu().detach().numpy(),
                                                                   batch[2][:, j].reshape(-1),
                                                                   metric_train_[j], metric_count_[j],
@@ -146,15 +146,14 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
                                                               batch[1].reshape(-1),
                                                               metric_train_[j], metric_count_[j],
                                                               type=params['type_target'])
-            # alpha = loss_batch_treats.cpu().detach().numpy() / loss_batch_target.cpu().detach().numpy()
             if X2_cols is not None:
                 loss_ae = ae_criterion(X2_reconstruct, batch[0][:, X2_cols].to(device))
-                # beta = loss_batch_treats.cpu().detach().numpy() / loss_ae.cpu().detach().numpy()
                 loss_ae_av += loss_ae.cpu().detach().numpy()
                 loss_batch = loss_batch_treats * params['loss_treat'] + loss_batch_target * params[
                     'loss_target'] + loss_ae * params['loss_da']
             else:
-                loss_batch = loss_batch_treats + loss_batch_target * alpha
+                loss_batch = loss_batch_treats * params['loss_treat'] + loss_batch_target * params[
+                    'loss_target'] + loss_ae * params['loss_da']
             loss_batch.backward()
             loss_av += loss_batch.cpu().detach().numpy()
             optimizer.step()
@@ -172,14 +171,14 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         for j in range(ty_val_pred.shape[1]):
             if j == ty_val_pred.shape[1] - 1:
                 loss_val[e] += criterion[j](ty_val_pred[:, j].reshape(-1),
-                                            y_val.reshape(-1).to(device)).cpu().detach().numpy() * model.num_treat * 2
+                                            y_val.reshape(-1).to(device)).cpu().detach().numpy()
                 errorm = 'Target - Val full'
                 metric_val_[j] = metric_batch(ty_val_pred[:, j].cpu().detach().numpy(),
                                               y_val.reshape(-1), errorm=errorm,
                                               type=params['type_target'])
             else:
                 loss_val[e] += criterion[j](ty_val_pred[:, j].reshape(-1),
-                                            T_val[:, j].reshape(-1).to(device)).cpu().detach().numpy()
+                                            T_val[:, j].reshape(-1).to(device)).cpu().detach().numpy()*params['pos_weight_t'][j]
                 errorm = 'Treat - Val Full'
                 metric_val_[j] = metric_batch(ty_val_pred[:, j].cpu().detach().numpy(),
                                               T_val[:, j].reshape(-1), errorm=errorm,
@@ -222,6 +221,8 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
     if params['best_validation_test'] and best_epoch > 0:
         print('... Loading Best validation (epoch ', best_epoch, ')')
         model.load_state_dict(torch.load(path))
+    else:
+        print('... BEST MODEL WAS AT EPOCH 0')
 
     print('... Final Metrics - Target')
     data_ = [loader_train, loader_val, loader_test]
@@ -252,7 +253,7 @@ class M3E2(nn.Module):
     # https://github.com/drawbridge/keras-mmoe/blob/master/census_income_demo.py
     def __init__(self, data, num_treat, num_exp, num_features, expert=None, units_exp=4, use_bias_exp=False,
                  use_bias_gate=False, y_continuous=False, dropoutp=0.25, X1_cols=None, X2_cols=None,
-                 hidden1=None, hidden2=None):
+                 hidden1=None, hidden2=None, use_bias_y=False):
         super().__init__()
         self.data = data  # name only
         self.num_treat = num_treat
@@ -262,6 +263,7 @@ class M3E2(nn.Module):
         self.units_tower = units_exp
         self.use_bias_exp = use_bias_exp
         self.use_bias_gate = use_bias_gate
+        self.use_bias_y = use_bias_y
         self.y_continuous = y_continuous
 
         if X2_cols is not None:
@@ -292,7 +294,8 @@ class M3E2(nn.Module):
         if self.use_bias_gate:
             self.bias_gate = nn.Parameter(torch.zeros(self.num_treat, 1, self.num_exp), requires_grad=True)
         self.bias_treat = nn.Parameter(torch.zeros(self.num_treat), requires_grad=True)
-        self.bias_y = nn.Parameter(torch.zeros(1), requires_grad=True)
+        if self.use_bias_y:
+            self.bias_y = nn.Parameter(torch.zeros(1), requires_grad=True)
 
         '''Defining towers - per treatment'''
         self.HT_list = nn.ModuleList([nn.Linear(self.num_exp, self.units_tower) for i in range(self.num_treat)])
@@ -383,7 +386,8 @@ class M3E2(nn.Module):
             aux = self.relu(aux)
             out = torch.matmul(aux, self.outcomeY)
             # bias is making coefs positive
-            out = out.add(self.bias_y)
+            if self.use_bias_y:
+                out = out.add(self.bias_y)
             output = torch.cat((output, out.reshape(-1, 1)), 1)
         else:
             # Train
@@ -392,7 +396,8 @@ class M3E2(nn.Module):
             aux = self.relu(aux)
             out = torch.matmul(aux, self.outcomeY)
             # bias is making all coef be positive
-            # out = out.add(self.bias_y)
+            if self.use_bias_y:
+                out = out.add(self.bias_y)
             # print(out)
             out = self.tahn(out)
             output = torch.cat((output, out.reshape(-1, 1)), 1)
