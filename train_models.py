@@ -101,7 +101,7 @@ def main(config_path, seed_models, seed_data):
                                 treatment_effects, X1_cols, X2_cols)
         loader_train, loader_val, loader_test, num_features = data_nnl.loader(params['suffle'], params['batch_size'],
                                                                               seed_models)
-        params['pos_weights'] = np.repeat(params['pos_weights'], len(treatement_columns))
+        #params['pos_weights'] = np.repeat(params['pos_weights'], len(treatement_columns))
         params['pos_weight_y'] = trykey(params, 'pos_weight_y', 1)
         params['hidden1'] = trykey(params, 'hidden1', 6)
         params['hidden2'] = trykey(params, 'hidden2', 6)

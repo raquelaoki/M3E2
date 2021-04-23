@@ -77,7 +77,7 @@ def metric_precision(pred, obs, type='binary'):
         y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
         return precision_score(obs, y01_pred)
     else:
-        return np.nan
+        return 999
 
 
 def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features, X1_cols, X2_cols=None):
