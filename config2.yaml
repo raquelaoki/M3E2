@@ -8,16 +8,16 @@ parameters:
     suffle: True
     best_validation_test: True
     batch_size: 100
-    max_epochs: 200
-    print: 20
+    max_epochs: 100
+    print: 30
     decay: 20
     alpha: 0.01 #decay downgrad
     gamma: 0.9 #Adam decay
     lr: 0.0001 #learning rate
-    wd: 0.05 #decay
+    wd: 0.001 #decay
     dropoutp: 0.25
-    pos_weight_y: 0.5
-    pos_weight: [0.25, 1, 1,1]
+    pos_weight_y: 0.7
+    pos_weight: [1, 1, 1,1]
     num_exp: 2
     units_exp: 4
     hidden1: 6
@@ -26,7 +26,7 @@ parameters:
     type_target: 'binary'
     baselines: True
     baselines_list: ['DA']
-    loss_target: 3
-    loss_da: 3
-    loss_treat: 1
+    loss_target: 5
+    loss_da: 1
+    loss_treat: 3
     loss_reg: 1
