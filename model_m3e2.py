@@ -202,15 +202,9 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         # Printing
         if e % params['print'] == 0:
             if X2_cols is not None:
-                print('CHECKING LOSSES BEFORE WEIGHT:', loss_batch_treats.cpu().detach().numpy(),
-                      loss_batch_target.cpu().detach().numpy(), loss_ae.cpu().detach().numpy())
-                print('CHECKING LOSSES AFTER WEIGHT:', loss_batch_treats.cpu().detach().numpy() * params['loss_treat'],
-                      loss_batch_target.cpu().detach().numpy() * params['loss_target'],
-                      loss_ae.cpu().detach().numpy() * params['loss_da'])
-                print('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), 'metric \n', metric_train[e])
-                print(metric_train_p[e])
-                print('... Val: loss ', round(loss_val[e], 2), 'metric \n', metric_val[e])
-                print(metric_val_p[e])
+                print('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), 'metric', metric_train[e])
+                print('... Val: loss ', round(loss_val[e], 2), 'metric', metric_val[e])
+                print('... Best Epoch', metric_val[e][-1])
             else:
                 print('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), 'metric ', metric_train[e],
                       '\n... Val: loss ', round(loss_val[e], 2), 'metric ', metric_val[e])

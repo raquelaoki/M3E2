@@ -30,7 +30,6 @@ def main(config_path, seed_models, seed_data):
 
     if params['type_treatment']!='binary':
         params['pos_weight_t'] = params['pos_weight']
-        PRINT('IM USING THE TREATMENT WEIGHTS')
     else:
         params['pos_weight_t'] = np.repeat(1,params['n_treatments'])
 
