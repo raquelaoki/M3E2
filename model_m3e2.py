@@ -151,6 +151,12 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
                 loss_ae_av += loss_ae.cpu().detach().numpy()
                 loss_batch = loss_batch_treats * params['loss_treat'] + loss_batch_target * params[
                     'loss_target'] + loss_ae * params['loss_da']
+                print_losses_noweights = [loss_batch_treats.cpu().detach().numpy() ,
+                                          loss_batch_target.cpu().detach().numpy() ,
+                                          loss_ae.cpu().detach().numpy()]
+                print_losses_withweights = [loss_batch_treats.cpu().detach().numpy() * params['loss_treat'],
+                                            loss_batch_target.cpu().detach().numpy() * params['loss_target'],
+                                            loss_ae.cpu().detach().numpy() * params['loss_da']]
             else:
                 loss_batch = loss_batch_treats * params['loss_treat'] + loss_batch_target * params[
                     'loss_target'] + loss_ae * params['loss_da']
@@ -205,6 +211,8 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
                 print('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), 'metric', metric_train[e])
                 print('... Val: loss ', round(loss_val[e], 2), 'metric', metric_val[e])
                 print('... Best Epoch', metric_val[e][-1])
+                print('No Weights',print_losses_noweights)
+                print('Weights',print_losses_withweights)
             else:
                 print('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), 'metric ', metric_train[e],
                       '\n... Val: loss ', round(loss_val[e], 2), 'metric ', metric_val[e])
@@ -238,10 +246,10 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
             f1 = accuracy_score(y, y01_pred)
 
     # print('Outcome Y', model.outcomeY.cpu().detach().numpy().reshape(-1))
-    if params['type_treatment']=='binary':
-        return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1) * (-1), f1
-    else:
-        return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1) , f1
+    #if params['type_treatment']=='binary':
+    #    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1) * (-1), f1
+    #else:
+    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1) , f1
 
 class M3E2(nn.Module):
     # https://github.com/drawbridge/keras-mmoe/blob/master/census_income_demo.py
