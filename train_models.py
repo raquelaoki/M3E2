@@ -113,7 +113,7 @@ def main(config_path, seed_models, seed_data):
 
         cate_m3e2, f1_test_ = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns,
                                           num_features,
-                                          X1_cols, X2_cols, use_bias_y=True)
+                                          X1_cols, X2_cols, use_bias_y=False)
         print('... CATE')
         #cate = pd.DataFrame({'CATE_M3E2': cate_m3e2, 'True_Effect': treatment_effects})
         baselines_results['M3E2'] = cate_m3e2
