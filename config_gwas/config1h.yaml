@@ -3,7 +3,7 @@ parameters:
     data: ['gwas'] #gwas, copula
     n_sample: 10000
     n_covariates: 1000
-    n_treatments: 40
+    n_treatments: 12
     model: 'm3e2'
     id: 'config1h'
     suffle: True

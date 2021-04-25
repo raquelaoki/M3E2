@@ -15,7 +15,7 @@ SOURCEDIR= ~/projects/rrg-ester/raoki/M3E2
 
 source env/bin/activate
 
-python train_models.py config_gwas/config1d.yaml 10 4
+python train_models.py config_gwas/config1d.yaml 8 4
 
 echo 'DONE!'
 

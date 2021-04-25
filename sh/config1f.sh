@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --time=08:00:00
+#SBATCH --time=12:00:00
 #SBATCH --account=rrg-ester
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
@@ -15,7 +15,7 @@ SOURCEDIR= ~/projects/rrg-ester/raoki/M3E2
 
 source env/bin/activate
 
-python train_models.py config_gwas/config1f.yaml 10 4
+python train_models.py config_gwas/config1f.yaml 8 4
 
 echo 'DONE!'
 
