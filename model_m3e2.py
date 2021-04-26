@@ -249,7 +249,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
     #if params['type_treatment']=='binary':
     #    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1) * (-1), f1
     #else:
-    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1)*(-1), f1
+    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1), f1
 
 class M3E2(nn.Module):
     # https://github.com/drawbridge/keras-mmoe/blob/master/census_income_demo.py
