@@ -28,10 +28,10 @@ def main(config_path, seed_models, seed_data):
     # Fix Torch graph-level seed for reproducibility
     torch.manual_seed(seed_models)
 
-    if params['type_treatment']!='binary':
+    if params['type_treatment'] != 'binary':
         params['pos_weight_t'] = params['pos_weight']
     else:
-        params['pos_weight_t'] = np.repeat(1,params['n_treatments'])
+        params['pos_weight_t'] = np.repeat(1, params['n_treatments'])
 
     if 'gwas' in params['data']:
 
@@ -106,7 +106,7 @@ def main(config_path, seed_models, seed_data):
                                 treatment_effects, X1_cols, X2_cols)
         loader_train, loader_val, loader_test, num_features = data_nnl.loader(params['suffle'], params['batch_size'],
                                                                               seed_models)
-        #params['pos_weights'] = np.repeat(params['pos_weights'], len(treatement_columns))
+        # params['pos_weights'] = np.repeat(params['pos_weights'], len(treatement_columns))
         params['pos_weight_y'] = trykey(params, 'pos_weight_y', 1)
         params['hidden1'] = trykey(params, 'hidden1', 6)
         params['hidden2'] = trykey(params, 'hidden2', 6)
@@ -115,7 +115,7 @@ def main(config_path, seed_models, seed_data):
                                           num_features,
                                           X1_cols, X2_cols, use_bias_y=False)
         print('... CATE')
-        #cate = pd.DataFrame({'CATE_M3E2': cate_m3e2, 'True_Effect': treatment_effects})
+        # cate = pd.DataFrame({'CATE_M3E2': cate_m3e2, 'True_Effect': treatment_effects})
         baselines_results['M3E2'] = cate_m3e2
         exp_time['M3E2'] = time.time() - start_time
         f1_test['M3E2'] = f1_test_
@@ -304,7 +304,7 @@ if __name__ == "__main__":
             print('Data', j)
             for i in range(seed_models):
                 print('Models', i)
-                if i == 0:
+                if i == 0 and j == 0:
                     output, name = main(config_path=sys.argv[1], seed_models=i, seed_data=j + 5)
                 else:
                     output_, name = main(config_path=sys.argv[1], seed_models=i, seed_data=j + 5)
