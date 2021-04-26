@@ -1,29 +1,34 @@
 #Parameters
 parameters:
     data: ['copula'] #gwas, copula
-    n_sample: 100
+    n_sample: 2500
     n_covariates: 10
     n_treatments: 4
     model: 'm3e2'
     id: 'config2a'
     suffle: True
     best_validation_test: True
-    batch_size: 500
-    max_epochs: 200
-    print: 100
-    decay: 40
-    alpha: 0.0001 #decay downgrad
-    gamma: 0.9 #Adam decay
+    batch_size: 100
+    max_epochs: 100
+    print: 50
+    decay: 20
+    alpha: 0.01 #decay downgrad
+    gamma: 0.8 #Adam decay
     lr: 0.001 #learning rate
-    wd: 0.005 #weight_decay
-    dropoutp: 0.25
-    pos_weight_y: 1.25
+    wd: 0.05 #weight_decay
+    dropoutp: 0.5
+    pos_weight_y: 0.7
+    pos_weight: [ 0.7, 1, 1,1 ]
     num_exp: 2
     units_exp: 4
-    hidden1: 64
-    hidden2: 8
-    type_treatment: 'binary' #continuous, binary
-    type_target: 'binary' #continuous, binary
+    hidden1: 6
+    hidden2: 3
+    type_treatment: 'continuous' #continuous, binary
+    type_target: 'binary'
     baselines: True
-    baselines_list: ['DA','CEVAE']
+    baselines_list: [ 'DA' ,'CEVAE']
+    loss_target: 6
+    loss_da: 2
+    loss_treat: 0.5
+    loss_reg: 1
 
