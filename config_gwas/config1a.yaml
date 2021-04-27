@@ -13,8 +13,8 @@ parameters:
     print: 50
     decay: 20
     alpha: 0.01 #decay downgrad
-    gamma: 0.8 #Adam decay
-    lr: 0.001 #learning rate
+    gamma: 0.7 #Adam decay
+    lr: 0.01 #learning rate
     wd: 0.05 #weight_decay
     dropoutp: 0.5
     pos_weight_y: 1
@@ -26,7 +26,7 @@ parameters:
     type_treatment: 'binary' #continuous, binary
     type_target: 'binary' #continuous, binary
     baselines: True
-    baselines_list: ['DA','CEVAE']
+    baselines_list: ['DA','CEVAE','Dragonnet']
     loss_target: 3
     loss_da: 3
     loss_treat: 1
