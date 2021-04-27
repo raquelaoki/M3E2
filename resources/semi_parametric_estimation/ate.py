@@ -5,6 +5,7 @@ from scipy.optimize import minimize
 from .helpers import truncate_by_g, mse, cross_entropy, truncate_all_by_g
 from .att import att_estimates
 
+#Reference: https://github.com/claudiashi57/dragonnet
 
 def _perturbed_model_bin_outcome(q_t0, q_t1, g, t, eps):
     """

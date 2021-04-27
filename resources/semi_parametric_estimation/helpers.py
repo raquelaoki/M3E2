@@ -1,7 +1,9 @@
 import numpy as np
 from scipy.special import logit
-
 import sklearn.linear_model as lm
+
+#Reference: https://github.com/claudiashi57/dragonnet
+
 
 def calibrate_g(g, t):
     """

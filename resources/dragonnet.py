@@ -1,7 +1,7 @@
 import tensorflow as tf
-from models import make_dragonnet
-from models import binary_classification_loss, regression_loss, treatment_accuracy, track_epsilon
-from models import dragonnet_loss_binarycross, make_tarreg_loss
+from models_dragonnet import make_dragonnet
+from models_dragonnet import binary_classification_loss, regression_loss, treatment_accuracy, track_epsilon
+from models_dragonnet import dragonnet_loss_binarycross, make_tarreg_loss
 from keras.optimizers import SGD, Adam
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau, TerminateOnNaN
 from sklearn.preprocessing import StandardScaler
@@ -78,12 +78,13 @@ class dragonnet():
     def train_and_predict_dragons(self, t_train, y_train, x_train, t_test, y_test, x_test,
                                   targeted_regularization=True, knob_loss=dragonnet_loss_binarycross,
                                   ratio=1., val_split=0.2, batch_size=64, epochs_adam=100, epochs_sgd=300):
+        #reference: https://github.com/claudiashi57/dragonnet
         verbose = 0  # Don't output log into the standard output stream
         self.y_scaler = StandardScaler().fit(y_train)
         y_train = self.y_scaler.transform(y_train)
         y_test = self.y_scaler.transform(y_test)
 
-        print("I am here making dragonnet")
+        #print("I am here making dragonnet")
         dragonnet = make_dragonnet(input_dim=x_train.shape[1], reg_l2=0.01)
 
         metrics = [regression_loss, binary_classification_loss, treatment_accuracy, track_epsilon]
@@ -94,13 +95,14 @@ class dragonnet():
             loss = knob_loss
 
         i = 0
-        tf.random.set_random_seed(i)
+        #tf.random.set_random_seed(i)'
+        tf.random.set_seed(i)
         np.random.seed(i)
 
         yt_train = np.concatenate([y_train, t_train], 1)
 
-        import time
-        start_time = time.time()
+        #import time
+        #start_time = time.time()
 
         dragonnet.compile(
             optimizer=Adam(lr=1e-3),
@@ -134,8 +136,8 @@ class dragonnet():
                       epochs=epochs_sgd,
                       batch_size=batch_size, verbose=verbose)
 
-        elapsed_time = time.time() - start_time
-        print("***************************** elapsed_time is: ", elapsed_time)
+        #elapsed_time = time.time() - start_time
+        #print("***************************** elapsed_time is: ", elapsed_time)
 
         self.models.append(dragonnet)
 
@@ -169,9 +171,9 @@ class dragonnet():
             eps = np.zeros_like(yt_hat[:, 2])
 
         y = y_scaler.inverse_transform(y.copy())
-        var = "average propensity for treated: {} and untreated: {}".format(g[t.squeeze() == 1.].mean(),
-                                                                            g[t.squeeze() == 0.].mean())
-        print(var)
+        #var = "average propensity for treated: {} and untreated: {}".format(g[t.squeeze() == 1.].mean(),
+        #                                                                    g[t.squeeze() == 0.].mean())
+        #print(var)
 
         # return {'q_t0': q_t0, 'q_t1': q_t1, 'g': g, 't': t, 'y': y, 'x': x, 'index': index, 'eps': eps}
         return q_t0, q_t1, g, t, y, x, eps
@@ -189,6 +191,7 @@ class dragonnet():
 
         y = self.y_scaler.transform(y)
 
+        #print('CAlculating ate')
         for i in range(len(self.treatments_columns)):
             t_col = self.treatments_columns[i]
             if dataset == 'train':
@@ -203,7 +206,7 @@ class dragonnet():
 
             psi_n, psi_tmle, initial_loss, final_loss, g_loss = self.get_estimate(q_t0, q_t1, g, t, y_dragon,
                                                                                   truncate_level=0.01)
-
+            #print('TCOL',psi_n,q_t0, q_t1)
             self.simple_ate.append(psi_n)
             self.tmle_ate.append(psi_tmle)
 

@@ -1,0 +1,12 @@
+config,sample_size,treatments,confounders
+config2a,2500,4,10
+config2b,5000,4,10
+config2c,10000,4,10
+config2d,10000,4,5
+config2e,10000,4,10
+config2f,10000,4,25
+config2g,10000,4,50
+config2h,10000,4,100
+config2i,10000,4,500
+config2j,10000,4,1000
+config2k,10000,4,2000

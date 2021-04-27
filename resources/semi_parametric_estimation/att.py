@@ -4,6 +4,8 @@ from scipy.optimize import minimize
 
 from .helpers import truncate_all_by_g, cross_entropy, mse
 
+#Reference: https://github.com/claudiashi57/dragonnet
+
 
 def _perturbed_model(q_t0, q_t1, g, t, q, eps):
     # helper function for psi_tmle

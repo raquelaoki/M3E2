@@ -7,6 +7,10 @@ CompBioAndSimulated_Datasets
 .idea/
 slurm/
 ParKCa
+.zip
+plots/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

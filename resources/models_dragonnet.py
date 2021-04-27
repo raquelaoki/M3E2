@@ -6,6 +6,7 @@ from keras.layers import Input, Dense, Concatenate, BatchNormalization, Dropout
 from keras.models import Model
 from keras import regularizers
 
+#Reference: https://github.com/claudiashi57/dragonnet
 
 def binary_classification_loss(concat_true, concat_pred):
     t_true = concat_true[:, 1]

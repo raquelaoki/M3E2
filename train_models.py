@@ -195,6 +195,13 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
         times['BART'] = time.time() - start_time
         print('\nDone!')
 
+    if 'Dragonnet' in BaselinesList:
+        start_time = time.time()
+        from resources import dragonnet
+        #TODO: add resources to the path?
+        model_bart.fit(n_trees=ParamsList['BART']['n_trees'], n_burn=ParamsList['BART']['n_burn'], print_=False)
+
+
     if 'CEVAE' in BaselinesList:
         print('\n\n Learner: CEVAE')
         start_time = time.time()
@@ -305,9 +312,9 @@ if __name__ == "__main__":
             for i in range(seed_models):
                 print('Models', i)
                 if i == 0 and j == 0:
-                    output, name = main(config_path=sys.argv[1], seed_models=i, seed_data=j + 5)
+                    output, name = main(config_path=sys.argv[1], seed_models=i, seed_data=j)
                 else:
-                    output_, name = main(config_path=sys.argv[1], seed_models=i, seed_data=j + 5)
+                    output_, name = main(config_path=sys.argv[1], seed_models=i, seed_data=j)
                     output = pd.concat([output, output_], 0, ignore_index=True)
         output_path = 'output/'
 
