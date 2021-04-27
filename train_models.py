@@ -10,7 +10,7 @@ import torch
 sys.path.insert(0, 'src/')
 # sys.path.insert(0, 'bartpy/')  # https://github.com/JakeColtman/bartpy
 sys.path.insert(0, 'ParKCa/src/')
-# from ParKCa.src.train import *
+sys.path.insert(0, 'resources/')
 from CompBioAndSimulated_Datasets.simulated_data_multicause import *
 import model_m3e2 as m3e2
 
@@ -198,9 +198,13 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
     if 'Dragonnet' in BaselinesList:
         start_time = time.time()
         from resources import dragonnet
-        #TODO: add resources to the path?
-        model_bart.fit(n_trees=ParamsList['BART']['n_trees'], n_burn=ParamsList['BART']['n_burn'], print_=False)
-
+        model_dragon = dragonnet.dragonnet(X_train01, X_test01, y_train, y_test,
+                                           TreatCols)
+        model_dragon.fit(False)
+        ate = model_dragon.ate()
+        coef_table['Dragonnet'], f1_test['Dragonnet'] = ate[0], model_dragon.f1_test
+        times['Dragonnet'] = time.time() - start_time
+        print('\nDone!')
 
     if 'CEVAE' in BaselinesList:
         print('\n\n Learner: CEVAE')
@@ -253,12 +257,12 @@ def organize_output(experiments, true_effect, exp_time=None, f1_scores=None):
     """
     Treatments = experiments['causes']
     experiments.set_index('causes', inplace=True)
-    experiments['TrueTreat'] = true_effect
+    experiments['TrueTreat'] = true_effect*(-1)
     Treatments_cate = np.transpose(experiments)
     BaselinesNames = experiments.columns
     mae = []
     for col in BaselinesNames:
-        dif = np.abs(experiments[col] - experiments['TrueTreat']*(-1))
+        dif = np.abs(experiments[col] - experiments['TrueTreat'])
         mae.append(np.nanmean(dif))
     output = pd.DataFrame({'Method': BaselinesNames, 'MAE': mae})
     exp_time['TrueTreat'] = 0

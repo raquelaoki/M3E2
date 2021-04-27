@@ -40,6 +40,7 @@ class dragonnet():
         x_test = self.X_test[:, self.covariates_columns]
         y_train = self.y_train
         y_test = self.y_test
+        f1_test = []
 
         for t_col in self.treatments_columns:
             t_train = self.X_train[:, [t_col]]
@@ -74,6 +75,9 @@ class dragonnet():
 
                 print('... Testing set: F1 - ', f1_score(self.y_test, y_test_pred01))
                 print('...... confusion matrix: ', confusion_matrix(self.y_test, y_test_pred01).ravel())
+            f1_test.append(f1_score(self.y_test, y_test_pred01))
+
+        self.f1_test = f1_test.mean()
 
     def train_and_predict_dragons(self, t_train, y_train, x_train, t_test, y_test, x_test,
                                   targeted_regularization=True, knob_loss=dragonnet_loss_binarycross,
