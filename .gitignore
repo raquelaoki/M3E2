@@ -7,7 +7,7 @@ CompBioAndSimulated_Datasets
 .idea/
 slurm/
 ParKCa
-.zip
+*.zip
 plots/
 
 
