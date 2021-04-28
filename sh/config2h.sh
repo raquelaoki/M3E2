@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH --time=20:00:00
+#SBATCH --time=8:00:00
 #SBATCH --account=rrg-ester
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=8000M
+#SBATCH --mem=12000M
 #SBATCH --output=slurm/%x-%j.out
 #SBATCH --gres=gpu:1
 
