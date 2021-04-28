@@ -32,9 +32,9 @@ class dragonnet():
         self.all_output_list = []
         print('Running dragonnet')
 
-    def fit(self, is_targeted_regularization, ratio=1., val_split=0.2,
+    def fit_all(self, is_targeted_regularization, ratio=1., val_split=0.2,
             batch_size=64, epochs_adam=100, epochs_sgd=300,
-            print_=True):
+            print_=True, u1=200, u2=100, u3=1):
         knob_loss = dragonnet_loss_binarycross
         x_train = self.X_train[:, self.covariates_columns]
         x_test = self.X_test[:, self.covariates_columns]
@@ -43,6 +43,7 @@ class dragonnet():
         f1_test = []
 
         for t_col in self.treatments_columns:
+            #print('Col treat', t_col)
             t_train = self.X_train[:, [t_col]]
             t_test = self.X_test[:, [t_col]]
 
@@ -50,8 +51,11 @@ class dragonnet():
                                                                                    t_test, y_test, x_test,
                                                                                    targeted_regularization=is_targeted_regularization,
                                                                                    knob_loss=knob_loss, ratio=ratio,
-                                                                                   val_split=val_split, batch_size=batch_size,
-                                                                                   epochs_adam=epochs_adam, epochs_sgd=epochs_sgd)
+                                                                                   val_split=val_split,
+                                                                                   batch_size=batch_size,
+                                                                                   epochs_adam=epochs_adam,
+                                                                                   epochs_sgd=epochs_sgd,
+                                                                                   u1=u1, u2=u2,u3=u3)
             self.test_output_list.append(test_output)
             self.train_output_list.append(train_output)
             self.all_output_list.append(all_output)
@@ -63,7 +67,6 @@ class dragonnet():
             t_test = t_test.reshape(-1)
             y_test_pred = test_output[:, 0] * (t_test == 0) + test_output[:, 1] * (t_test == 1)
             y_test_pred = self.y_scaler.inverse_transform(y_test_pred)
-
 
             thhold = self.Find_Optimal_Cutoff(self.y_train, y_train_pred)
             y_train_pred01 = [0 if item < thhold else 1 for item in y_train_pred]
@@ -77,19 +80,21 @@ class dragonnet():
                 print('...... confusion matrix: ', confusion_matrix(self.y_test, y_test_pred01).ravel())
             f1_test.append(f1_score(self.y_test, y_test_pred01))
 
-        self.f1_test = f1_test.mean()
+        self.f1_test = np.mean(f1_test)
 
     def train_and_predict_dragons(self, t_train, y_train, x_train, t_test, y_test, x_test,
                                   targeted_regularization=True, knob_loss=dragonnet_loss_binarycross,
-                                  ratio=1., val_split=0.2, batch_size=64, epochs_adam=100, epochs_sgd=300):
-        #reference: https://github.com/claudiashi57/dragonnet
+                                  ratio=1., val_split=0.2, batch_size=64, epochs_adam=100, epochs_sgd=300,
+                                  u1=200, u2=100, u3=1):
+        # reference: https://github.com/claudiashi57/dragonnet
         verbose = 0  # Don't output log into the standard output stream
         self.y_scaler = StandardScaler().fit(y_train)
         y_train = self.y_scaler.transform(y_train)
         y_test = self.y_scaler.transform(y_test)
 
-        #print("I am here making dragonnet")
-        dragonnet = make_dragonnet(input_dim=x_train.shape[1], reg_l2=0.01)
+        # print("I am here making dragonnet")
+        dragonnet = make_dragonnet(input_dim=x_train.shape[1], reg_l2=0.01,
+                                   u1 = u1, u2=u2, u3=u3)
 
         metrics = [regression_loss, binary_classification_loss, treatment_accuracy, track_epsilon]
 
@@ -99,14 +104,14 @@ class dragonnet():
             loss = knob_loss
 
         i = 0
-        #tf.random.set_random_seed(i)'
+        # tf.random.set_random_seed(i)'
         tf.random.set_seed(i)
         np.random.seed(i)
 
         yt_train = np.concatenate([y_train, t_train], 1)
 
-        #import time
-        #start_time = time.time()
+        # import time
+        # start_time = time.time()
 
         dragonnet.compile(
             optimizer=Adam(lr=1e-3),
@@ -140,8 +145,8 @@ class dragonnet():
                       epochs=epochs_sgd,
                       batch_size=batch_size, verbose=verbose)
 
-        #elapsed_time = time.time() - start_time
-        #print("***************************** elapsed_time is: ", elapsed_time)
+        # elapsed_time = time.time() - start_time
+        # print("***************************** elapsed_time is: ", elapsed_time)
 
         self.models.append(dragonnet)
 
@@ -175,9 +180,9 @@ class dragonnet():
             eps = np.zeros_like(yt_hat[:, 2])
 
         y = y_scaler.inverse_transform(y.copy())
-        #var = "average propensity for treated: {} and untreated: {}".format(g[t.squeeze() == 1.].mean(),
+        # var = "average propensity for treated: {} and untreated: {}".format(g[t.squeeze() == 1.].mean(),
         #                                                                    g[t.squeeze() == 0.].mean())
-        #print(var)
+        # print(var)
 
         # return {'q_t0': q_t0, 'q_t1': q_t1, 'g': g, 't': t, 'y': y, 'x': x, 'index': index, 'eps': eps}
         return q_t0, q_t1, g, t, y, x, eps
@@ -190,12 +195,13 @@ class dragonnet():
             X = self.X_test[:, self.covariates_columns]
             y = self.y_test
         if dataset == 'all':
-            X = np.concatenate([self.X_train[:, self.covariates_columns], self.X_test[:, self.covariates_columns]], axis=0)
+            X = np.concatenate([self.X_train[:, self.covariates_columns], self.X_test[:, self.covariates_columns]],
+                               axis=0)
             y = np.concatenate([self.y_train, self.y_test], axis=0)
 
         y = self.y_scaler.transform(y)
 
-        #print('CAlculating ate')
+        # print('CAlculating ate')
         for i in range(len(self.treatments_columns)):
             t_col = self.treatments_columns[i]
             if dataset == 'train':
@@ -210,7 +216,7 @@ class dragonnet():
 
             psi_n, psi_tmle, initial_loss, final_loss, g_loss = self.get_estimate(q_t0, q_t1, g, t, y_dragon,
                                                                                   truncate_level=0.01)
-            #print('TCOL',psi_n,q_t0, q_t1)
+            # print('TCOL',psi_n,q_t0, q_t1)
             self.simple_ate.append(psi_n)
             self.tmle_ate.append(psi_tmle)
 
@@ -227,6 +233,9 @@ class dragonnet():
         list type, with optimal cutoff value
         https://stackoverflow.com/questions/28719067/roc-curve-and-cut-off-point-python
         """
+        #print('Im HERE')
+        #print('Target:', target)
+        #print('predicted',predicted)
         fpr, tpr, threshold = roc_curve(target, predicted)
         i = np.arange(len(tpr))
         roc = pd.DataFrame({'tf': pd.Series(tpr - (1 - fpr), index=i), 'threshold': pd.Series(threshold, index=i)})

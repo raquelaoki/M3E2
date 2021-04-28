@@ -105,7 +105,7 @@ def make_tarreg_loss(ratio=1., dragonnet_loss=dragonnet_loss_binarycross):
     return tarreg_ATE_unbounded_domain_loss
 
 
-def make_dragonnet(input_dim, reg_l2):
+def make_dragonnet(input_dim, reg_l2, u1 = 200, u2=100, u3=1):
     """
     Neural net predictive model. The dragon has three heads.
     :param input_dim:
@@ -115,27 +115,28 @@ def make_dragonnet(input_dim, reg_l2):
     t_l1 = 0.
     t_l2 = reg_l2
     inputs = Input(shape=(input_dim,), name='input')
+    print('Making Dragonnet dimensions', u1, u2, u3)
 
     # representation
-    x = Dense(units=200, activation='elu', kernel_initializer='RandomNormal')(inputs)
-    x = Dense(units=200, activation='elu', kernel_initializer='RandomNormal')(x)
-    x = Dense(units=200, activation='elu', kernel_initializer='RandomNormal')(x)
+    x = Dense(units=u1, activation='elu', kernel_initializer='RandomNormal')(inputs)
+    x = Dense(units=u1, activation='elu', kernel_initializer='RandomNormal')(x)
+    x = Dense(units=u1, activation='elu', kernel_initializer='RandomNormal')(x)
 
 
     t_predictions = Dense(units=1, activation='sigmoid')(x)
 
     # HYPOTHESIS
-    y0_hidden = Dense(units=100, activation='elu', kernel_regularizer=regularizers.l2(reg_l2))(x)
-    y1_hidden = Dense(units=100, activation='elu', kernel_regularizer=regularizers.l2(reg_l2))(x)
+    y0_hidden = Dense(units=u2, activation='elu', kernel_regularizer=regularizers.l2(reg_l2))(x)
+    y1_hidden = Dense(units=u2, activation='elu', kernel_regularizer=regularizers.l2(reg_l2))(x)
 
     # second layer
-    y0_hidden = Dense(units=100, activation='elu', kernel_regularizer=regularizers.l2(reg_l2))(y0_hidden)
-    y1_hidden = Dense(units=100, activation='elu', kernel_regularizer=regularizers.l2(reg_l2))(y1_hidden)
+    y0_hidden = Dense(units=u2, activation='elu', kernel_regularizer=regularizers.l2(reg_l2))(y0_hidden)
+    y1_hidden = Dense(units=u2, activation='elu', kernel_regularizer=regularizers.l2(reg_l2))(y1_hidden)
 
     # third
-    y0_predictions = Dense(units=1, activation=None, kernel_regularizer=regularizers.l2(reg_l2), name='y0_predictions')(
+    y0_predictions = Dense(units=u3, activation=None, kernel_regularizer=regularizers.l2(reg_l2), name='y0_predictions')(
         y0_hidden)
-    y1_predictions = Dense(units=1, activation=None, kernel_regularizer=regularizers.l2(reg_l2), name='y1_predictions')(
+    y1_predictions = Dense(units=u3, activation=None, kernel_regularizer=regularizers.l2(reg_l2), name='y1_predictions')(
         y1_hidden)
 
     dl = EpsilonLayer()

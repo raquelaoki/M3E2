@@ -36,7 +36,8 @@ def main(config_path, seed_models, seed_data):
     if 'gwas' in params['data']:
 
         params_b = {'DA': {'k': [15]},
-                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 10}}
+                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 10},
+                    'Dragonnet': {'u1': 200, 'u2': 100, 'u3': 1}}
 
         params["n_treatments"] = trykey(params, 'n_treatments', 5)
         prop = params["n_treatments"] / (params["n_treatments"] + params['n_covariates'])
@@ -84,7 +85,8 @@ def main(config_path, seed_models, seed_data):
         output = organize_output(baselines_results.copy(), treatment_effects[treatement_columns], exp_time, f1_test)
     if 'copula' in params['data']:
         params_b = {'DA': {'k': [5]},
-                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 5}}
+                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 5},
+                    'Dragonnet': {'u1': 10, 'u2': 5, 'u3': 1}}
 
         sdata_copula = copula_simulated_data(seed=seed_data, n=params['n_sample'], s=params['n_covariates'])
         X, y, y01, treatement_columns, treatment_effects = sdata_copula.generate_samples()
@@ -119,7 +121,8 @@ def main(config_path, seed_models, seed_data):
         baselines_results['M3E2'] = cate_m3e2
         exp_time['M3E2'] = time.time() - start_time
         f1_test['M3E2'] = f1_test_
-        output = organize_output(baselines_results.copy(), treatment_effects[treatement_columns], exp_time, f1_test)
+        output = organize_output(baselines_results.copy(), treatment_effects[treatement_columns],
+                                 exp_time, f1_test, gwas=False)
     if 'gwas' not in params['data'] and 'copula' not in params['data']:
         print(
             "ERRROR! \nDataset not recognized. \nChange the parameter data in your config.yaml file to gwas or copula.")
@@ -189,7 +192,7 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
         model_bart = BART(X_train01, X_test01, y_train, y_test)
         ParamsList['BART']['n_trees'] = trykey(ParamsList['BART'], 'n_trees', 50)
         ParamsList['BART']['n_burn'] = trykey(ParamsList['BART'], 'n_burn', 100)
-        model_bart.fit(n_trees=ParamsList['BART']['n_trees'], n_burn=ParamsList['BART']['n_burn'], print_=False)
+        model_bart.fit_all(n_trees=ParamsList['BART']['n_trees'], n_burn=ParamsList['BART']['n_burn'], print_=False)
         print('...... predictions')
         coef_table['BART'], f1_test['BART'] = model_bart.cate(TreatCols, print_=False)
         times['BART'] = time.time() - start_time
@@ -200,7 +203,8 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
         from resources import dragonnet
         model_dragon = dragonnet.dragonnet(X_train01, X_test01, y_train, y_test,
                                            TreatCols)
-        model_dragon.fit(False)
+        model_dragon.fit_all(is_targeted_regularization=False, u1=ParamsList['Dragonnet']['u1'],
+                             u2=ParamsList['Dragonnet']['u2'], u3=ParamsList['Dragonnet']['u3'])
         ate = model_dragon.ate()
         coef_table['Dragonnet'], f1_test['Dragonnet'] = ate[0], model_dragon.f1_test
         times['Dragonnet'] = time.time() - start_time
@@ -243,7 +247,7 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
         return coef_table, times, f1_test
 
 
-def organize_output(experiments, true_effect, exp_time=None, f1_scores=None):
+def organize_output(experiments, true_effect, exp_time=None, f1_scores=None, gwas=True):
     """
     Important: experiments, experiments times and f1 scores should be in the same order
     Parameters
@@ -257,12 +261,15 @@ def organize_output(experiments, true_effect, exp_time=None, f1_scores=None):
     """
     Treatments = experiments['causes']
     experiments.set_index('causes', inplace=True)
-    experiments['TrueTreat'] = true_effect*(-1)
+    experiments['TrueTreat'] = true_effect * (-1)
     Treatments_cate = np.transpose(experiments)
     BaselinesNames = experiments.columns
     mae = []
     for col in BaselinesNames:
-        dif = np.abs(experiments[col] - experiments['TrueTreat'])
+        if gwas:
+            dif = np.abs(experiments[col] - experiments['TrueTreat'])
+        else:
+            dif = np.abs(experiments[col] + experiments['TrueTreat'])
         mae.append(np.nanmean(dif))
     output = pd.DataFrame({'Method': BaselinesNames, 'MAE': mae})
     exp_time['TrueTreat'] = 0
@@ -321,6 +328,7 @@ if __name__ == "__main__":
                     output_, name = main(config_path=sys.argv[1], seed_models=i, seed_data=j)
                     output = pd.concat([output, output_], 0, ignore_index=True)
         output_path = 'output/'
+
 
     output.to_csv(output_path + name)
     end_time = time.time() - start_time
