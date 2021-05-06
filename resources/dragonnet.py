@@ -5,7 +5,7 @@ from models_dragonnet import dragonnet_loss_binarycross, make_tarreg_loss
 from keras.optimizers import SGD, Adam
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau, TerminateOnNaN
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, roc_curve
+from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, roc_curve, mean_squared_error
 import keras.backend as K
 import numpy as np
 import pandas as pd
@@ -67,19 +67,24 @@ class dragonnet():
             t_test = t_test.reshape(-1)
             y_test_pred = test_output[:, 0] * (t_test == 0) + test_output[:, 1] * (t_test == 1)
             y_test_pred = self.y_scaler.inverse_transform(y_test_pred)
+            if len(np.unique(self.y_train)) ==2:
+                thhold = self.Find_Optimal_Cutoff(self.y_train, y_train_pred)
+                y_train_pred01 = [0 if item < thhold else 1 for item in y_train_pred]
+                y_test_pred01 = [0 if item < thhold else 1 for item in y_test_pred]
+                if print_:
+                    print('... Evaluation:')
+                    print('... Training set: F1 - ', f1_score(self.y_train, y_train_pred01))
+                    print('...... confusion matrix: ', confusion_matrix(self.y_train, y_train_pred01).ravel())
 
-            thhold = self.Find_Optimal_Cutoff(self.y_train, y_train_pred)
-            y_train_pred01 = [0 if item < thhold else 1 for item in y_train_pred]
-            y_test_pred01 = [0 if item < thhold else 1 for item in y_test_pred]
-            if print_:
+                    print('... Testing set: F1 - ', f1_score(self.y_test, y_test_pred01))
+                    print('...... confusion matrix: ', confusion_matrix(self.y_test, y_test_pred01).ravel())
+                f1_test.append(f1_score(self.y_test, y_test_pred01))
+            else:
                 print('... Evaluation:')
-                print('... Training set: F1 - ', f1_score(self.y_train, y_train_pred01))
-                print('...... confusion matrix: ', confusion_matrix(self.y_train, y_train_pred01).ravel())
+                print('... Training set: MSE - ', mean_squared_error(self.y_train, y_train_pred))
 
-                print('... Testing set: F1 - ', f1_score(self.y_test, y_test_pred01))
-                print('...... confusion matrix: ', confusion_matrix(self.y_test, y_test_pred01).ravel())
-            f1_test.append(f1_score(self.y_test, y_test_pred01))
-
+                print('... Testing set: MSE - ', mean_squared_error(self.y_test, y_test_pred))
+                f1_test.append(mean_squared_error(self.y_test, y_test_pred))
         self.f1_test = np.mean(f1_test)
 
     def train_and_predict_dragons(self, t_train, y_train, x_train, t_test, y_test, x_test,

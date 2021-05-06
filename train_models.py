@@ -123,7 +123,45 @@ def main(config_path, seed_models, seed_data):
         f1_test['M3E2'] = f1_test_
         output = organize_output(baselines_results.copy(), treatment_effects[treatement_columns],
                                  exp_time, f1_test, gwas=False)
-    if 'gwas' not in params['data'] and 'copula' not in params['data']:
+
+    if 'ihdp' in params['data']:
+        sdata_ihdp = ihdp_data(id=seed_data)
+        X, y, treatement_columns, treatment_effects = sdata_ihdp.generate_samples()
+
+        params_b = {'DA': {'k': [5]},
+                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 5},
+                    'Dragonnet': {'u1': 200, 'u2': 100, 'u3': 1}} #same as paper
+
+        if params['baselines']:
+            baselines_results, exp_time, f1_test = baselines(params['baselines_list'], X, y, params_b,
+                                                             TreatCols=treatement_columns, timeit=True,
+                                                             seed=seed_models)
+        else:
+            baselines_results, exp_time, f1_test = baselines(['noise'],  X, y, params_b,
+                                                             TreatCols=treatement_columns, timeit=True,
+                                                             seed=seed_models)
+        start_time = time.time()
+        X_train, X_test, y_train, y_test = train_test_split(X, y01, test_size=0.33, random_state=seed_models)
+        X1_cols = []
+        X2_cols = range(X.shape[1] - len(treatement_columns))
+
+        data_nnl = m3e2.data_nn(X_train, X_test, y_train, y_test, treatement_columns,
+                                treatment_effects, X1_cols, X2_cols)
+        loader_train, loader_val, loader_test, num_features = data_nnl.loader(params['suffle'], params['batch_size'],
+                                                                              seed_models)
+        params['hidden1'] = trykey(params, 'hidden1', 6)
+        params['hidden2'] = trykey(params, 'hidden2', 6)
+        params['pos_weights'] = np.repeat(params['pos_weights'], len(treatement_columns))
+        cate_m3e2, f1_test_ = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns,
+                                          num_features, X1_cols, X2_cols, use_bias_y=True)
+        print('... CATE')
+        baselines_results['M3E2'] = cate_m3e2
+        exp_time['M3E2'] = time.time() - start_time
+        f1_test['M3E2'] = f1_test_
+        output = organize_output(baselines_results.copy(), treatment_effects[treatement_columns],
+                                 exp_time, f1_test, gwas=False)
+
+    if 'gwas' not in params['data'] and 'copula' not in params['data'] and 'ihdp' not in params['data']:
         print(
             "ERRROR! \nDataset not recognized. \nChange the parameter data in your config.yaml file to gwas or copula.")
 

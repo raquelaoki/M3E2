@@ -1,0 +1,30 @@
+#Parameters
+parameters:
+    data: ['ihdp'] #gwas, copula
+    model: 'm3e2'
+    n_treatments: 1
+    id: 'config3a'
+    suffle: True
+    best_validation_test: True
+    batch_size: 50
+    max_epochs: 200
+    print: 100
+    decay: 100
+    gamma: 0.9 #Adam decay
+    lr: 0.1 #learning rate 0.001
+    wd: 0.01 #weight_decay
+    dropoutp: 0.5
+    pos_weights: 5
+    num_exp: 2
+    units_exp: 4
+    hidden1: 10
+    hidden2: 6
+    type_treatment: 'binary' #continuous, binary
+    type_target: 'continuous' #continuous, binary
+    baselines: True
+    baselines_list: ['DA','Dragonnet'] #todo: 'CEVAE','Dragonnet': cevae is NA only
+    loss_target: 4
+    loss_da: 5
+    loss_treat: 5
+    loss_reg: 1
+

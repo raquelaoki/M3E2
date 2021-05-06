@@ -9,6 +9,7 @@ slurm/
 ParKCa
 *.zip
 plots/
+cevae_env/
 
 
 # Byte-compiled / optimized / DLL files

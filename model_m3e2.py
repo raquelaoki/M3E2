@@ -75,7 +75,7 @@ def metric_precision(pred, obs, type='binary'):
         sigmoid = nn.Sigmoid()
         y01_pred = sigmoid(Tensor(pred)).numpy()
         y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
-        return precision_score(obs, y01_pred)
+        return precision_score(obs, y01_pred, labels=[0,1])
     else:
         return 999
 
@@ -91,6 +91,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
                      range(model.num_treat)]
     else:
         criterion = [nn.MSELoss() for i in range(model.num_treat)]
+
     if params['type_target'] == 'binary':
         # Target
         criterion.append(nn.BCEWithLogitsLoss(pos_weight=torch.tensor(params['pos_weight_y'])))
@@ -110,7 +111,10 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
     metric_train_p, metric_val_p = [], []  # np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
     loss_train_ae, loss_val_ae = np.zeros(params['max_epochs']), np.zeros(params['max_epochs'])
 
-    best_val_metric = 0
+    if params['type_target']=='binary':
+        best_val_metric = 0
+    else:
+        best_val_metric = 999
     best_epoch = 0
     print('... Training')
 
@@ -177,33 +181,42 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         for j in range(ty_val_pred.shape[1]):
             if j == ty_val_pred.shape[1] - 1:
                 loss_val[e] += criterion[j](ty_val_pred[:, j].reshape(-1),
-                                            y_val.reshape(-1).to(device)).cpu().detach().numpy()
+                                            y_val.reshape(-1).to(device)).cpu().detach().numpy()* params['loss_target']
                 errorm = 'Target - Val full'
                 metric_val_[j] = metric_batch(ty_val_pred[:, j].cpu().detach().numpy(),
                                               y_val.reshape(-1), errorm=errorm,
                                               type=params['type_target'])
             else:
                 loss_val[e] += criterion[j](ty_val_pred[:, j].reshape(-1),
-                                            T_val[:, j].reshape(-1).to(device)).cpu().detach().numpy()*params['pos_weight_t'][j]
+                                            T_val[:, j].reshape(-1).to(device)).cpu().detach().numpy()*params['loss_treat']
                 errorm = 'Treat - Val Full'
                 metric_val_[j] = metric_batch(ty_val_pred[:, j].cpu().detach().numpy(),
                                               T_val[:, j].reshape(-1), errorm=errorm,
                                               type=params['type_treatment'])
                 metric_val_p_[j] = metric_precision(ty_val_pred[:, j].cpu().detach().numpy(),
-                                                    y_val.reshape(-1), type=params['type_treatment'])
+                                                    T_val.reshape(-1), type=params['type_treatment'])
         if X2_cols is not None:
-            loss_val_ae[e] = ae_criterion(X2_reconstruct_val, X_val[:, X2_cols].to(device)).cpu().detach().numpy()
+            loss_val_ae[e] = ae_criterion(X2_reconstruct_val, X_val[:, X2_cols].to(device)).cpu().detach().numpy()*params['loss_da']
 
         # Best model saved
         metric_val.append(metric_val_)
         metric_val_p.append(metric_val_p_)  # precision
         if params["best_validation_test"]:
             # Metric based on target
-            if np.sum(metric_val[e][-1]) > best_val_metric:
-                best_epoch = e
-                best_val_metric = np.sum(metric_val[e][-1])
-                path = 'savedmodels/m3e2_' + params['id'] + 'best.pth'
-                torch.save(model.state_dict(), path)
+            if params['type_target']=='binary':
+                #largest f1 score or precision or accuracy
+                if np.sum(metric_val[e][-1]) > best_val_metric:
+                    best_epoch = e
+                    best_val_metric = np.sum(metric_val[e][-1])
+                    path = 'savedmodels/m3e2_' + params['id'] + 'best.pth'
+                    torch.save(model.state_dict(), path)
+            else:
+                #smallest RMSE
+                if np.sum(metric_val[e][-1]) < best_val_metric:
+                    best_epoch = e
+                    best_val_metric = np.sum(metric_val[e][-1])
+                    path = 'savedmodels/m3e2_' + params['id'] + 'best.pth'
+                    torch.save(model.state_dict(), path)
 
         # Printing
         if e % params['print'] == 0:
@@ -233,22 +246,28 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
     for i, data in enumerate(data_):
         X, y, T = next(iter(data))
         ty_pred, _ = model(X.to(device), T.to(device))
-        y01_pred = sigmoid(ty_pred[:, model.num_treat]).cpu().detach().numpy()
-        y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
+        if params['type_target']=='binary':
+            y01_pred = sigmoid(ty_pred[:, model.num_treat]).cpu().detach().numpy()
+            y01_pred = [1 if item > 0.5 else 0 for item in y01_pred]
+        else:
+            y01_pred = ty_pred[:, model.num_treat].cpu().detach().numpy()
+
         try:
             metric = metric_batch(y, y01_pred, type=params['type_target'])
-            # print(confusion_matrix(y, y01_pred))
         except ValueError:
-            aux = np.nan()
-        print('......', data_name[i], ': ', round(metric, 3), ' and precision:', precision_score(y01_pred, y))
-        if data_name[i] == 'Test':
-            print('CHANGED FROM F1 TO ACC')
-            f1 = accuracy_score(y, y01_pred)
+            metric = np.nan()
 
-    # print('Outcome Y', model.outcomeY.cpu().detach().numpy().reshape(-1))
-    #if params['type_treatment']=='binary':
-    #    return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1) * (-1), f1
-    #else:
+        if params['type_target'] == 'binary':
+            print('......', data_name[i], ': ', round(metric, 3), ' and precision:', precision_score(y01_pred, y))
+            if data_name[i] == 'Test':
+                print('CHANGED FROM F1 TO ACC')
+                f1 = accuracy_score(y, y01_pred)
+        else:
+            print('......', data_name[i], ': ', round(metric, 3), ' and RMSE:', mean_squared_error(y01_pred, y))
+            print(y01_pred[0:6], '\n', y[0:6])
+            if data_name[i] == 'Test':
+                print('mean_squared_error')
+                f1 = mean_squared_error(y, y01_pred)
     return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1), f1
 
 class M3E2(nn.Module):
@@ -370,7 +389,6 @@ class M3E2(nn.Module):
                 HY = HY + out_t
             out_t = self.tahn(out_t)
             out_t = self.propensityT[treatment](out_t)
-            # out_t = self.sigmoid(out_t)
             if i == 0:
                 output = out_t.reshape(-1, 1)
             else:
@@ -395,13 +413,15 @@ class M3E2(nn.Module):
             # Train
             HY = self.relu(HY)
             aux = torch.cat((treat_assignment, HY), 1)
-            aux = self.relu(aux)
+            if self.num_treat >1:
+                aux = self.relu(aux)
             out = torch.matmul(aux, self.outcomeY)
             # bias is making all coef be positive
             if self.use_bias_y:
                 out = out.add(self.bias_y)
             # print(out)
-            out = self.tahn(out)
+            if self.num_treat > 1:
+                out = self.tahn(out)
             output = torch.cat((output, out.reshape(-1, 1)), 1)
 
         if self.X2_cols is not None:
