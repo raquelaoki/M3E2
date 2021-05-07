@@ -22,7 +22,7 @@ parameters:
     type_treatment: 'binary' #continuous, binary
     type_target: 'continuous' #continuous, binary
     baselines: True
-    baselines_list: ['DA','Dragonnet'] #todo: 'CEVAE','Dragonnet': cevae is NA only
+    baselines_list: ['DA','Dragonnet','CEVAE'] #todo: 'CEVAE','Dragonnet': cevae is NA only
     loss_target: 4
     loss_da: 5
     loss_treat: 5

@@ -36,7 +36,7 @@ def main(config_path, seed_models, seed_data):
     if 'gwas' in params['data']:
 
         params_b = {'DA': {'k': [15]},
-                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 10},
+                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 10,'binarytarget':True},
                     'Dragonnet': {'u1': 200, 'u2': 100, 'u3': 1}}
 
         params["n_treatments"] = trykey(params, 'n_treatments', 5)
@@ -85,7 +85,7 @@ def main(config_path, seed_models, seed_data):
         output = organize_output(baselines_results.copy(), treatment_effects[treatement_columns], exp_time, f1_test)
     if 'copula' in params['data']:
         params_b = {'DA': {'k': [5]},
-                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 5},
+                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 5,'binarytarget':True},
                     'Dragonnet': {'u1': 10, 'u2': 5, 'u3': 1}}
 
         sdata_copula = copula_simulated_data(seed=seed_data, n=params['n_sample'], s=params['n_covariates'])
@@ -129,7 +129,7 @@ def main(config_path, seed_models, seed_data):
         X, y, treatement_columns, treatment_effects = sdata_ihdp.generate_samples()
 
         params_b = {'DA': {'k': [5]},
-                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 5},
+                    'CEVAE': {'num_epochs': 150, 'batch': 50, 'z_dim': 5,'binarytarget':False},
                     'Dragonnet': {'u1': 200, 'u2': 100, 'u3': 1}} #same as paper
 
         if params['baselines']:
@@ -141,11 +141,11 @@ def main(config_path, seed_models, seed_data):
                                                              TreatCols=treatement_columns, timeit=True,
                                                              seed=seed_models)
         start_time = time.time()
-        X_train, X_test, y_train, y_test = train_test_split(X, y01, test_size=0.33, random_state=seed_models)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=seed_models)
         X1_cols = []
         X2_cols = range(X.shape[1] - len(treatement_columns))
 
-        data_nnl = m3e2.data_nn(X_train, X_test, y_train, y_test, treatement_columns,
+        data_nnl = m3e2.data_nn(X_train.values, X_test.values, y_train, y_test, treatement_columns,
                                 treatment_effects, X1_cols, X2_cols)
         loader_train, loader_val, loader_test, num_features = data_nnl.loader(params['suffle'], params['batch_size'],
                                                                               seed_models)
@@ -158,7 +158,7 @@ def main(config_path, seed_models, seed_data):
         baselines_results['M3E2'] = cate_m3e2
         exp_time['M3E2'] = time.time() - start_time
         f1_test['M3E2'] = f1_test_
-        output = organize_output(baselines_results.copy(), treatment_effects[treatement_columns],
+        output = organize_output(baselines_results.copy(), treatment_effects,
                                  exp_time, f1_test, gwas=False)
 
     if 'gwas' not in params['data'] and 'copula' not in params['data'] and 'ihdp' not in params['data']:
@@ -270,7 +270,8 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
                             binfeats=binfeatures, contfeats=confeatures,
                             epochs=ParamsList['CEVAE']['epochs'],
                             batch=ParamsList['CEVAE']['batch'],
-                            z_dim=ParamsList['CEVAE']['z_dim'])
+                            z_dim=ParamsList['CEVAE']['z_dim'],
+                            binarytarget=ParamsList['CEVAE']['binarytarget'])
         print('DONE INITIALIZATION')
         coef_table['CEVAE'], f1_test['CEVAE'] = model_cevae.fit_all(print_=False)
         times['CEVAE'] = time.time() - start_time
