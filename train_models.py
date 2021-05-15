@@ -12,6 +12,7 @@ sys.path.insert(0, 'src/')
 sys.path.insert(0, 'ParKCa/src/')
 sys.path.insert(0, 'resources/')
 from CompBioAndSimulated_Datasets.simulated_data_multicause import *
+from CompBioAndSimulated_Datasets.fromBEDtoNPY import goPDX
 import model_m3e2 as m3e2
 
 
@@ -29,14 +30,14 @@ def main(config_path, seed_models, seed_data):
     torch.manual_seed(seed_models)
 
     if params['type_treatment'] != 'binary':
-        params['pos_weight_t'] = params['pos_weight']
+        params['pos_weight_t'] = params['pos_weights']
     else:
         params['pos_weight_t'] = np.repeat(1, params['n_treatments'])
 
     if 'gwas' in params['data']:
 
         params_b = {'DA': {'k': [15]},
-                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 10,'binarytarget':True},
+                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 10, 'binarytarget': True},
                     'Dragonnet': {'u1': 200, 'u2': 100, 'u3': 1}}
 
         params["n_treatments"] = trykey(params, 'n_treatments', 5)
@@ -85,7 +86,7 @@ def main(config_path, seed_models, seed_data):
         output = organize_output(baselines_results.copy(), treatment_effects[treatement_columns], exp_time, f1_test)
     if 'copula' in params['data']:
         params_b = {'DA': {'k': [5]},
-                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 5,'binarytarget':True},
+                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 5, 'binarytarget': True},
                     'Dragonnet': {'u1': 10, 'u2': 5, 'u3': 1}}
 
         sdata_copula = copula_simulated_data(seed=seed_data, n=params['n_sample'], s=params['n_covariates'])
@@ -123,21 +124,20 @@ def main(config_path, seed_models, seed_data):
         f1_test['M3E2'] = f1_test_
         output = organize_output(baselines_results.copy(), treatment_effects[treatement_columns],
                                  exp_time, f1_test, gwas=False)
-
     if 'ihdp' in params['data']:
         sdata_ihdp = ihdp_data(id=seed_data)
         X, y, treatement_columns, treatment_effects = sdata_ihdp.generate_samples()
 
         params_b = {'DA': {'k': [5]},
-                    'CEVAE': {'num_epochs': 150, 'batch': 50, 'z_dim': 5,'binarytarget':False},
-                    'Dragonnet': {'u1': 200, 'u2': 100, 'u3': 1}} #same as paper
+                    'CEVAE': {'num_epochs': 150, 'batch': 50, 'z_dim': 5, 'binarytarget': False},
+                    'Dragonnet': {'u1': 200, 'u2': 100, 'u3': 1}}  # same as paper
 
         if params['baselines']:
             baselines_results, exp_time, f1_test = baselines(params['baselines_list'], X, y, params_b,
                                                              TreatCols=treatement_columns, timeit=True,
                                                              seed=seed_models)
         else:
-            baselines_results, exp_time, f1_test = baselines(['noise'],  X, y, params_b,
+            baselines_results, exp_time, f1_test = baselines(['noise'], X, y, params_b,
                                                              TreatCols=treatement_columns, timeit=True,
                                                              seed=seed_models)
         start_time = time.time()
@@ -160,8 +160,8 @@ def main(config_path, seed_models, seed_data):
         f1_test['M3E2'] = f1_test_
         output = organize_output(baselines_results.copy(), treatment_effects,
                                  exp_time, f1_test, gwas=False)
-
-    if 'gwas' not in params['data'] and 'copula' not in params['data'] and 'ihdp' not in params['data']:
+    if 'gwas' not in params['data'] and 'copula' not in params['data'] and 'ihdp' not in params[
+        'data'] and 'bcch' not in params['data']:
         print(
             "ERRROR! \nDataset not recognized. \nChange the parameter data in your config.yaml file to gwas or copula.")
 
@@ -367,7 +367,6 @@ if __name__ == "__main__":
                     output_, name = main(config_path=sys.argv[1], seed_models=i, seed_data=j)
                     output = pd.concat([output, output_], 0, ignore_index=True)
         output_path = 'output/'
-
 
     output.to_csv(output_path + name)
     end_time = time.time() - start_time

@@ -1,0 +1,30 @@
+#Parameters
+parameters:
+    data: ['bcch'] #gwas, copula
+    model: 'm3e2'
+    id: 'config4a'
+    suffle: True
+    best_validation_test: True
+    batch_size: 10
+    max_epochs: 200
+    print: 25
+    decay: 20
+    gamma: 0.9 #Adam decay
+    lr: 0.001 #learning rate 0.001
+    wd: 0.01 #weight_decay
+    dropoutp: 0.5
+    pos_weights: 5
+    pos_weight_y: 1
+    num_exp: 2
+    units_exp: 4
+    hidden1: 128
+    hidden2: 16
+    type_treatment: 'continuous' #continuous, binary
+    type_target: 'binary' #continuous, binary
+    baselines: True
+    baselines_list: ['DA','Dragonnet']
+    loss_target: 1
+    loss_da: 1
+    loss_treat: 10
+    loss_reg: 1
+

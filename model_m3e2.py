@@ -25,9 +25,6 @@ class data_nn(object):
         if X2_cols is None:
             X2_cols = range(X_train.shape[1])
         self.X2_cols = X2_cols
-        # self.treat_weights = 1 / (self.T_train.sum(0) / self.T_train.shape[0])
-        # print('Weights', self.treat_weights)
-        # self.treat_weights = rep()
         print('M3E2: Train Shape ', self.X_train.shape, self.T_train.shape)
 
     def loader(self, shuffle=True, batch=250, seed=1):
@@ -82,7 +79,6 @@ def metric_precision(pred, obs, type='binary'):
 
 def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features, X1_cols, X2_cols=None, use_bias_y=False):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # X, y, T = next(iter(loader_train))
     model = M3E2(data='gwas', num_treat=len(treatement_columns), num_exp=params['num_exp'],
                  num_features=num_features, dropoutp=params['dropoutp'], X1_cols=X1_cols, X2_cols=X2_cols,
                  hidden1=params['hidden1'], hidden2=params['hidden2'], use_bias_y=use_bias_y)
@@ -125,7 +121,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
         # for i, batch in enumerate(tqdm(train_loader)):
         loss_av, loss_ae_av = 0, 0
         metric_count_ = np.zeros(model.num_treat + 1)
-        # Train alternating
+
         for i, batch in enumerate(loader_train):
             ty_train_pred, X2_reconstruct = model(batch[0].to(device), batch[2].to(device))
             # Doing by task / target
@@ -134,7 +130,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
             optimizer.zero_grad()
             for j in range(model.num_treat):
                 loss_batch_treats += criterion[j](ty_train_pred[:, j].reshape(-1),
-                                                  batch[2][:, j].reshape(-1).to(device))*params['pos_weight_t'][j]
+                                                  batch[2][:, j].reshape(-1).to(device))
                 metric_train_[j], metric_count_[j] = metric_batch(ty_train_pred[:, j].cpu().detach().numpy(),
                                                                   batch[2][:, j].reshape(-1),
                                                                   metric_train_[j], metric_count_[j],
@@ -288,7 +284,7 @@ class M3E2(nn.Module):
         self.y_continuous = y_continuous
 
         if X2_cols is not None:
-            self.num_features = hidden2
+            self.num_features = hidden2 + len(X1_cols)
         else:
             self.num_features = num_features
         self.X1_cols = X1_cols
@@ -336,7 +332,7 @@ class M3E2(nn.Module):
         self.sigmoid = nn.Sigmoid()
         print('... Model initialization done!')
 
-    def forward(self, inputs, treat_assignment=None, device=None):
+    def forward(self, inputs, treat_assignment=None):
 
         n = inputs.shape[0]
 

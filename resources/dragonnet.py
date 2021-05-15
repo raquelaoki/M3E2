@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 from semi_parametric_estimation.ate import psi_naive, psi_tmle_cont_outcome
 
+# reference: https://github.com/claudiashi57/dragonnet
 
 class dragonnet():
     def __init__(self, X_train, X_test, y_train, y_test,
