@@ -9,10 +9,9 @@ import torch
 
 sys.path.insert(0, 'src/')
 # sys.path.insert(0, 'bartpy/')  # https://github.com/JakeColtman/bartpy
-sys.path.insert(0, 'ParKCa/src/')
+sys.path.insert(0, 'ParKCa/src/') #remove
 sys.path.insert(0, 'resources/')
 from CompBioAndSimulated_Datasets.simulated_data_multicause import *
-from CompBioAndSimulated_Datasets.fromBEDtoNPY import goPDX
 import model_m3e2 as m3e2
 
 
