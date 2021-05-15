@@ -36,9 +36,4 @@ Note: ports might differ, check before running if you are using the correct ones
 
 TODO: module load cuda torch (test if required)
 
-## Datasets
-- Simulated datasets are available [here](https://github.com/raquelaoki/CompBioAndSimulated_Datasets)
 
-## Baselines
-- The Deconfouder Algorithm, BART, and CEVAE were previously implemented [here](https://github.com/raquelaoki/ParKCa). We are using the same implementation. 
-- Dragonned and Hi-CI: TODO
