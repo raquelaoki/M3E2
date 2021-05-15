@@ -32,6 +32,7 @@ salloc --time=1:0:0 --gres=gpu:1 --ntasks=1 --cpus-per-task=1 --mem=4000M --acco
 ssh -L 8888:cdr767.int.cedar.computecanada.ca:8888 USER@cedar.computecanada.ca
 ```
 Note: ports might differ, check before running if you are using the correct ones. 
+
 4. Open the link shown on Compute Canada on your local browser.
 
 TODO: module load cuda torch (test if required)
