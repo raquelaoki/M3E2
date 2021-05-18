@@ -13,7 +13,7 @@ parameters:
     print: 50
     decay: 20
     alpha: 0.01 #decay downgrad
-    gamma: 0.8 #Adam decay
+    gamma: 0.8 #Adam decay 0.6?
     lr: 0.001 #learning rate
     wd: 0.05 #weight_decay
     dropoutp: 0.5
@@ -21,8 +21,8 @@ parameters:
     pos_weights: 9
     num_exp: 4
     units_exp: 4
-    hidden1: 64
-    hidden2: 8
+    hidden1: 64 #4
+    hidden2: 8 #4
     type_treatment: 'binary' #continuous, binary
     type_target: 'binary' #continuous, binary
     baselines: True
