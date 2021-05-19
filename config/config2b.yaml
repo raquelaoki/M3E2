@@ -26,7 +26,7 @@ parameters:
     type_treatment: 'continuous' #continuous, binary
     type_target: 'binary'
     baselines: True
-    baselines_list: ['DA','CEVAE','Dragonnet']
+    baselines_list: ['DA','CEVAE','Dragonnet','HiCI']
     loss_target: 6
     loss_da: 2
     loss_treat: 0.5
