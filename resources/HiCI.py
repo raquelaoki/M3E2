@@ -6,7 +6,6 @@ from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.data.dataset import Dataset
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, roc_curve, mean_squared_error
