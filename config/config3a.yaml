@@ -6,7 +6,7 @@ parameters:
     id: 'config3a'
     suffle: True
     best_validation_test: True
-    batch_size: 20
+    batch_size: 60
     max_epochs: 100
     print: 25
     decay: 20
@@ -17,14 +17,14 @@ parameters:
     dropoutp: 0.5
     pos_weights: 5
     num_exp: 2
-    units_exp: 4
-    hidden1: 16
-    hidden2: 8
+    units_exp: 10
+    hidden1: 20
+    hidden2: 16
     type_treatment: 'binary' #continuous, binary
     type_target: 'continuous' #continuous, binary
     baselines: True
     baselines_list: ['DA','Dragonnet','CEVAE']#,,
-    loss_target: 6
+    loss_target: 5
     loss_da: 5
     loss_treat: 4
     loss_reg: 1

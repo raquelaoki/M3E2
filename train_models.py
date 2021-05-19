@@ -9,7 +9,7 @@ import torch
 
 sys.path.insert(0, 'src/')
 # sys.path.insert(0, 'bartpy/')  # https://github.com/JakeColtman/bartpy
-sys.path.insert(0, 'ParKCa/src/') #remove
+sys.path.insert(0, 'ParKCa/src/')  # remove
 sys.path.insert(0, 'resources/')
 from CompBioAndSimulated_Datasets.simulated_data_multicause import *
 import model_m3e2 as m3e2
@@ -37,7 +37,9 @@ def main(config_path, seed_models, seed_data):
 
         params_b = {'DA': {'k': [15]},
                     'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 10, 'binarytarget': True},
-                    'Dragonnet': {'u1': 200, 'u2': 100, 'u3': 1}}
+                    'Dragonnet': {'u1': 200, 'u2': 100, 'u3': 1},
+                    'HiCI': {'batch': 250, 'type_target': 'binary', 'gamma': 0.05,
+                             'hidden1': 64, 'hidden2': 32, 'loss_weight': [5, 0.05, 0.3]}}
 
         params["n_treatments"] = trykey(params, 'n_treatments', 5)
         prop = params["n_treatments"] / (params["n_treatments"] + params['n_covariates'])
@@ -86,7 +88,10 @@ def main(config_path, seed_models, seed_data):
     if 'copula' in params['data']:
         params_b = {'DA': {'k': [5]},
                     'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 5, 'binarytarget': True},
-                    'Dragonnet': {'u1': 10, 'u2': 5, 'u3': 1}}
+                    'Dragonnet': {'u1': 10, 'u2': 5, 'u3': 1},
+                    'HiCI': {'batch': 250, 'type_target': 'continous', 'gamma': 0.1,
+                             'hidden1': 10, 'hidden2': 4, 'loss_weight': [1, 0.2, 0.01]}
+                    }
 
         sdata_copula = copula_simulated_data(seed=seed_data, n=params['n_sample'], s=params['n_covariates'])
         X, y, y01, treatement_columns, treatment_effects = sdata_copula.generate_samples()
@@ -141,8 +146,8 @@ def main(config_path, seed_models, seed_data):
                                                              seed=seed_models)
         start_time = time.time()
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=seed_models)
-        X1_cols = []
-        X2_cols = range(X.shape[1] - len(treatement_columns))
+        X1_cols = range(X.shape[1] - len(treatement_columns))  # []
+        X2_cols = None  # []#range(X.shape[1] - len(treatement_columns))
 
         data_nnl = m3e2.data_nn(X_train.values, X_test.values, y_train, y_test, treatement_columns,
                                 treatment_effects, X1_cols, X2_cols)
@@ -276,9 +281,22 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
         times['CEVAE'] = time.time() - start_time
         print('\nDone!')
 
-    # if 'noise' in BaselinesList:
-    #    coef_table['noise'], f1_test['noise'] = np.random.uniform(-1, 1, len(TreatCols)), np.random.uniform(0, 1, 1)[0]
-    #    times['noise'] = 0
+    if 'HiCI' in BaselinesList:
+        start_time = time.time()
+        from resources.HiCI import HiCI
+        model_HiCI = HiCI(X_train01.values, X_test01.values, y_train, y_test, TreatCols)
+        try:
+            model_HiCI.fit(total_epochs=100, hidden1=ParamsList['HiCI']['hidden1'],
+                           hidden2=ParamsList['HiCI']['hidden2'], loss_weight=ParamsList['HiCI']['loss_weight'],
+                           gamma=ParamsList['HiCI']['gamma'], batch=ParamsList['HiCI']['batch'],
+                           type_target=ParamsList['HiCI']['type_target'])
+            ate = model_HiCI.cate()
+            coef_table['HiCI'], f1_test['HiCI'] = ate, model_HiCI.f1_test
+        except:
+            coef_table['HiCI'], f1_test['HiCI'] = np.repeat(0, len(TreatCols)), np.nan
+        times['HiCI'] = time.time() - start_time
+        print('\nDone!')
+
     if not timeit:
         return coef_table
     else:
