@@ -15,7 +15,7 @@ SOURCEDIR= ~/projects/rrg-ester/raoki/M3E2
 
 source env/bin/activate
 
-python train_models.py config_copula/config2h.yaml 8 4
+python train_models.py config/config2h.yaml 8 4
 
 echo 'DONE!'
 
