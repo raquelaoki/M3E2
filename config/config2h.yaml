@@ -18,7 +18,7 @@ parameters:
     wd: 0.05 #weight_decay
     dropoutp: 0.5
     pos_weight_y: 0.7
-    pos_weight: [ 0.7, 1, 1,1 ]
+    pos_weights: [ 0.7, 1, 1,1 ]
     num_exp: 2
     units_exp: 4
     hidden1: 6
