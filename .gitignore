@@ -9,6 +9,9 @@ ParKCa
 *.zip
 plots/
 cevae_env/
+CEVAE/
+__pycache__/
+savedmodels/
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -21,3 +24,5 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+
