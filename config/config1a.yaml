@@ -1,7 +1,7 @@
 #Parameters
 parameters:
     data: ['gwas'] #gwas, copula
-    n_sample: 2500
+    n_sample: 2000
     n_covariates: 995
     n_treatments: 5
     model: 'm3e2'

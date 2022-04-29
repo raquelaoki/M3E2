@@ -2,7 +2,7 @@
 parameters:
     data: ['copula'] #gwas, copula
     n_sample: 10000
-    n_covariates: 50
+    n_covariates: 625
     n_treatments: 4
     model: 'm3e2'
     id: 'config2g'

@@ -1,8 +1,8 @@
 #Parameters
 parameters:
     data: ['gwas'] #gwas, copula
-    n_sample: 10000
-    n_covariates: 1000
+    n_sample: 6000
+    n_covariates: 500
     n_treatments: 3
     model: 'm3e2'
     id: 'config1e'
@@ -13,8 +13,8 @@ parameters:
     print: 50
     decay: 20
     alpha: 0.01 #decay downgrad
-    gamma: 0.8 #Adam decay
-    lr: 0.001 #learning rate
+    gamma: 0.7 #Adam decay
+    lr: 0.01 #learning rate
     wd: 0.05 #weight_decay
     dropoutp: 0.5
     pos_weight_y: 1
