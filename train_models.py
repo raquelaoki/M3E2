@@ -1,21 +1,25 @@
-import random
-import pandas as pd
+import logging
 import numpy as np
+import pandas as pd
+import random
 import sys
-import yaml
 import time
-from sklearn.model_selection import train_test_split
 import torch
+import yaml
 
-sys.path.insert(0, 'src/')
-# sys.path.insert(0, 'bartpy/')  # https://github.com/JakeColtman/bartpy
-sys.path.insert(0, 'ParKCa/src/')  # remove
-sys.path.insert(0, 'resources/')
-from CompBioAndSimulated_Datasets.simulated_data_multicause import *
+from sklearn.model_selection import train_test_split
+
+# Local Imports
+import dragonnet
 import model_m3e2 as m3e2
+from cevae import CEVAE as CEVAE
+from CompBioAndSimulated_Datasets.simulated_data_multicause import *
+from deconfounder import deconfounder_algorithm as DA
+
+logger = logging.getLogger(__name__)
 
 
-def main(config_path, seed_models, seed_data):
+def main(config_path, seed_models, seed_data, path_save_model=''):
     """Start: Parameters Loading"""
     with open(config_path) as f:
         config = yaml.safe_load(f)
@@ -34,7 +38,6 @@ def main(config_path, seed_models, seed_data):
         params['pos_weight_t'] = np.repeat(1, params['n_treatments'])
 
     if 'gwas' in params['data']:
-
         params_b = {'DA': {'k': [15]},
                     'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 10, 'binarytarget': True},
                     'Dragonnet': {'u1': 200, 'u2': 100, 'u3': 1},
@@ -63,8 +66,9 @@ def main(config_path, seed_models, seed_data):
                                                              seed=seed_models)
 
         start_time = time.time()
+        print('...Running M3E2')
         X_train, X_test, y_train, y_test = train_test_split(X, y01, test_size=0.33, random_state=seed_models)
-        print('... Target - proportion of 1s', np.sum(y01) / len(y01))
+        logger.debug('... Target - proportion of 1s', np.sum(y01) / len(y01))
         # Split X1, X2 on GWAS: case with no clinicla variables , X2 = X
         X1_cols = []
         X2_cols = range(X.shape[1] - len(treatement_columns))
@@ -77,11 +81,17 @@ def main(config_path, seed_models, seed_data):
         params['pos_weight_y'] = trykey(params, 'pos_weight_y', 1)
         params['hidden1'] = trykey(params, 'hidden1', 64)
         params['hidden2'] = trykey(params, 'hidden2', 8)
-        cate_m3e2, f1_test_ = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns,
-                                          num_features,
-                                          X1_cols, X2_cols)
-        print('... CATE')
-        baselines_results['M3E2'] = cate_m3e2
+        ate_m3e2, f1_test_ = m3e2.fit_nn(loader_train=loader_train,
+                                          loader_val=loader_val,
+                                          loader_test=loader_test,
+                                          params=params,
+                                          treatement_columns=treatement_columns,
+                                          num_features=num_features,
+                                          X1_cols=X1_cols,
+                                          X2_cols=X2_cols,
+                                          path_save_model=path_save_model)
+        logger.debug('... ate')
+        baselines_results['M3E2'] = ate_m3e2
         exp_time['M3E2'] = time.time() - start_time
         f1_test['M3E2'] = f1_test_
         output = organize_output(baselines_results.copy(), treatment_effects[treatement_columns], exp_time, f1_test)
@@ -105,6 +115,7 @@ def main(config_path, seed_models, seed_data):
                                                              TreatCols=treatement_columns, timeit=True,
                                                              seed=seed_models)
         start_time = time.time()
+        print('...Running M3E2')
         X_train, X_test, y_train, y_test = train_test_split(X, y01, test_size=0.33, random_state=seed_models)
         X1_cols = []
         X2_cols = range(X.shape[1] - len(treatement_columns))
@@ -118,12 +129,13 @@ def main(config_path, seed_models, seed_data):
         params['hidden1'] = trykey(params, 'hidden1', 6)
         params['hidden2'] = trykey(params, 'hidden2', 6)
 
-        cate_m3e2, f1_test_ = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns,
+        ate_m3e2, f1_test_ = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns,
                                           num_features,
-                                          X1_cols, X2_cols, use_bias_y=False)
-        print('... CATE')
-        # cate = pd.DataFrame({'CATE_M3E2': cate_m3e2, 'True_Effect': treatment_effects})
-        baselines_results['M3E2'] = cate_m3e2
+                                          X1_cols, X2_cols,
+                                         use_bias_y=False, path_save_model=path_save_model)
+        logger.debug('... ate')
+        # ate = pd.DataFrame({'ate_M3E2': ate_m3e2, 'True_Effect': treatment_effects})
+        baselines_results['M3E2'] = ate_m3e2
         exp_time['M3E2'] = time.time() - start_time
         f1_test['M3E2'] = f1_test_
         output = organize_output(baselines_results.copy(), treatment_effects[treatement_columns],
@@ -145,6 +157,7 @@ def main(config_path, seed_models, seed_data):
                                                              TreatCols=treatement_columns, timeit=True,
                                                              seed=seed_models)
         start_time = time.time()
+        print('...Running M3E2')
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=seed_models)
         X1_cols = range(X.shape[1] - len(treatement_columns))  # []
         X2_cols = None  # []#range(X.shape[1] - len(treatement_columns))
@@ -156,17 +169,17 @@ def main(config_path, seed_models, seed_data):
         params['hidden1'] = trykey(params, 'hidden1', 6)
         params['hidden2'] = trykey(params, 'hidden2', 6)
         params['pos_weights'] = np.repeat(params['pos_weights'], len(treatement_columns))
-        cate_m3e2, f1_test_ = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns,
+        ate_m3e2, f1_test_ = m3e2.fit_nn(loader_train, loader_val, loader_test, params, treatement_columns,
                                           num_features, X1_cols, X2_cols, use_bias_y=True)
-        print('... CATE')
-        baselines_results['M3E2'] = cate_m3e2
+        logger.debug('... ate')
+        baselines_results['M3E2'] = ate_m3e2
         exp_time['M3E2'] = time.time() - start_time
         f1_test['M3E2'] = f1_test_
         output = organize_output(baselines_results.copy(), treatment_effects,
                                  exp_time, f1_test, gwas=False)
     if 'gwas' not in params['data'] and 'copula' not in params['data'] and 'ihdp' not in params[
         'data'] and 'bcch' not in params['data']:
-        print(
+        logger.debug(
             "ERRROR! \nDataset not recognized. \nChange the parameter data in your config.yaml file to gwas or copula.")
 
     name = 'output_' + params['data'][0] + '_' + params['id'] + '.csv'
@@ -214,7 +227,7 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
 
     if 'DA' in BaselinesList:
         start_time = time.time()
-        from deconfounder import deconfounder_algorithm as DA
+        print('...Running DA')
         ParamsList['DA']['k'] = trykey(ParamsList['DA'], 'k', 15)  # if exploring multiple latent sizes
         for k in ParamsList['DA']['k']:
             if len(ParamsList['DA']['k']) > 1:
@@ -226,23 +239,24 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
             coef, coef_continuos, roc, f1_test['DA'] = model_da.fit(class_weight=ParamsList['DA']['class_weight'])
             coef_table[coln] = coef_continuos[TreatCols]
         times['DA'] = time.time() - start_time
-        print('\nDone!')
+        logger.debug('\nDone!')
 
     if 'BART' in BaselinesList:
         start_time = time.time()
-        from bart import BART as BART
+        print('... Running BART')
+        #from bart import BART as BART
         model_bart = BART(X_train01, X_test01, y_train, y_test)
         ParamsList['BART']['n_trees'] = trykey(ParamsList['BART'], 'n_trees', 50)
         ParamsList['BART']['n_burn'] = trykey(ParamsList['BART'], 'n_burn', 100)
         model_bart.fit_all(n_trees=ParamsList['BART']['n_trees'], n_burn=ParamsList['BART']['n_burn'], print_=False)
-        print('...... predictions')
-        coef_table['BART'], f1_test['BART'] = model_bart.cate(TreatCols, print_=False)
+        logger.debug('...... predictions')
+        coef_table['BART'], f1_test['BART'] = model_bart.ate(TreatCols, print_=False)
         times['BART'] = time.time() - start_time
-        print('\nDone!')
+        logger.debug('\nDone!')
 
     if 'Dragonnet' in BaselinesList:
         start_time = time.time()
-        from resources import dragonnet
+        print('...Running Dragonnet')
         model_dragon = dragonnet.dragonnet(X_train01, X_test01, y_train, y_test,
                                            TreatCols)
         model_dragon.fit_all(is_targeted_regularization=False, u1=ParamsList['Dragonnet']['u1'],
@@ -250,13 +264,12 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
         ate = model_dragon.ate()
         coef_table['Dragonnet'], f1_test['Dragonnet'] = ate[0], model_dragon.f1_test
         times['Dragonnet'] = time.time() - start_time
-        print('\nDone!')
+        logger.debug('\nDone!')
 
     if 'CEVAE' in BaselinesList:
-        print('\n\n Learner: CEVAE')
         start_time = time.time()
-        from cevae import CEVAE as CEVAE
-        print('Note: Treatments should be the first columns of X')
+        print('...Running CEVAE')
+        logger.debug('Note: Treatments should be the first columns of X')
         ParamsList['CEVAE']['epochs'] = trykey(ParamsList['CEVAE'], 'epochs', 100)
         ParamsList['CEVAE']['batch'] = trykey(ParamsList['CEVAE'], 'batch', 200)
         ParamsList['CEVAE']['z_dim'] = trykey(ParamsList['CEVAE'], 'z_dim', 5)
@@ -269,33 +282,19 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, id='', t
             else:
                 binfeatures.append(col)
 
-        print('... length con and bin features', len(confeatures), len(binfeatures))
+        logger.debug('... length con and bin features', len(confeatures), len(binfeatures))
         model_cevae = CEVAE(X_train01, X_test01, y_train, y_test, TreatCols,
                             binfeats=binfeatures, contfeats=confeatures,
                             epochs=ParamsList['CEVAE']['epochs'],
                             batch=ParamsList['CEVAE']['batch'],
                             z_dim=ParamsList['CEVAE']['z_dim'],
                             binarytarget=ParamsList['CEVAE']['binarytarget'])
-        print('DONE INITIALIZATION')
+        logger.debug('DONE INITIALIZATION')
         coef_table['CEVAE'], f1_test['CEVAE'] = model_cevae.fit_all(print_=False)
         times['CEVAE'] = time.time() - start_time
-        print('\nDone!')
-
-    if 'HiCI' in BaselinesList:
-        start_time = time.time()
-        from resources.HiCI import HiCI
-        model_HiCI = HiCI(X_train01.values, X_test01.values, y_train, y_test, TreatCols)
-        try:
-            model_HiCI.fit(total_epochs=100, hidden1=ParamsList['HiCI']['hidden1'],
-                           hidden2=ParamsList['HiCI']['hidden2'], loss_weight=ParamsList['HiCI']['loss_weight'],
-                           gamma=ParamsList['HiCI']['gamma'], batch=ParamsList['HiCI']['batch'],
-                           type_target=ParamsList['HiCI']['type_target'])
-            ate = model_HiCI.cate()
-            coef_table['HiCI'], f1_test['HiCI'] = ate, model_HiCI.f1_test
-        except:
-            coef_table['HiCI'], f1_test['HiCI'] = np.repeat(0, len(TreatCols)), np.nan
-        times['HiCI'] = time.time() - start_time
-        print('\nDone!')
+        logger.debug('\nDone!')
+    else:
+        raise NotImplementedError('This method is not supported!')
 
     if not timeit:
         return coef_table
@@ -318,7 +317,7 @@ def organize_output(experiments, true_effect, exp_time=None, f1_scores=None, gwa
     Treatments = experiments['causes']
     experiments.set_index('causes', inplace=True)
     experiments['TrueTreat'] = true_effect * (-1)
-    Treatments_cate = np.transpose(experiments)
+    Treatments_ate = np.transpose(experiments)
     BaselinesNames = experiments.columns
     mae = []
     for col in BaselinesNames:
@@ -335,7 +334,7 @@ def organize_output(experiments, true_effect, exp_time=None, f1_scores=None, gwa
     if exp_time is not None:
         output['Time(s)'] = [exp_time[m] for m in output['Method'].values]
 
-    out = pd.DataFrame(Treatments_cate, columns=Treatments)
+    out = pd.DataFrame(Treatments_ate, columns=Treatments)
     out.reset_index(inplace=True, drop=True)
 
     return pd.concat((output, out), 1)

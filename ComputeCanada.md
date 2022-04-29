@@ -1,5 +1,8 @@
-# M3E2
-This project was developed using Compute Canada.
+# Compute Canada  
+
+This document explains how to setup Compute Canada env and
+run experiments. 
+
 
 ## Virtualenv on Compute Canada
 Setting up the virtual env ([reference](https://docs.computecanada.ca/wiki/Python#Creating_and_using_a_virtual_environment))
@@ -35,6 +38,13 @@ Note: ports might differ, check before running if you are using the correct ones
 
 4. Open the link shown on Compute Canada on your local browser.
 
-TODO: module load cuda torch (test if required)
+## Runing Experiments
 
+* Inside sh/ there are several .sh files. These files control the number of dataset repetitions and model repetitions. 
+* For each .sh file, there is a .yaml file inside the config/ folder. 
 
+One could either submit the .sh file to a cluster, or run locally: 
+```shell
+python train_models.py config/config1.yaml 8 4
+```
+where 8 would be the number of model repetitions, and 4 the number of datasets repettions (total of 4 x 8 runs of settings inside config1.yaml)

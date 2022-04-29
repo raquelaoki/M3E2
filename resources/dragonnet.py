@@ -5,19 +5,24 @@ Adapted to multiple-treatments (run multiple independent dragonnets)
 
 """
 
-
-import tensorflow as tf
-from models_dragonnet import make_dragonnet
-from models_dragonnet import binary_classification_loss, regression_loss, treatment_accuracy, track_epsilon
-from models_dragonnet import dragonnet_loss_binarycross, make_tarreg_loss
-from keras.optimizers import SGD, Adam
-from keras.callbacks import EarlyStopping, ReduceLROnPlateau, TerminateOnNaN
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, roc_curve, mean_squared_error
+import logging
 import keras.backend as K
 import numpy as np
 import pandas as pd
+import tensorflow as tf
+
+from keras.callbacks import EarlyStopping, ReduceLROnPlateau, TerminateOnNaN
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import confusion_matrix, f1_score, roc_curve, mean_squared_error
+from tensorflow.keras.optimizers import SGD, Adam
+
+# Local Imports
+from models_dragonnet import make_dragonnet
+from models_dragonnet import binary_classification_loss, regression_loss, treatment_accuracy, track_epsilon
+from models_dragonnet import dragonnet_loss_binarycross, make_tarreg_loss
 from semi_parametric_estimation.ate import psi_naive, psi_tmle_cont_outcome
+
+logger = logging.getLogger(__name__)
 
 
 class dragonnet():
@@ -38,7 +43,7 @@ class dragonnet():
         self.test_output_list = []
         self.train_output_list = []
         self.all_output_list = []
-        print('Running dragonnet')
+        #print('Running dragonnet')
 
     def fit_all(self, is_targeted_regularization, ratio=1., val_split=0.2,
             batch_size=64, epochs_adam=100, epochs_sgd=300,
@@ -70,28 +75,28 @@ class dragonnet():
 
             t_train = t_train.reshape(-1)
             y_train_pred = train_output[:, 0] * (t_train == 0) + train_output[:, 1] * (t_train == 1)
-            y_train_pred = self.y_scaler.inverse_transform(y_train_pred)
+            y_train_pred = self.y_scaler.inverse_transform(y_train_pred.reshape(-1,1))
 
             t_test = t_test.reshape(-1)
             y_test_pred = test_output[:, 0] * (t_test == 0) + test_output[:, 1] * (t_test == 1)
-            y_test_pred = self.y_scaler.inverse_transform(y_test_pred)
+            y_test_pred = self.y_scaler.inverse_transform(y_test_pred.reshape(-1,1))
             if len(np.unique(self.y_train)) ==2:
                 thhold = self.Find_Optimal_Cutoff(self.y_train, y_train_pred)
                 y_train_pred01 = [0 if item < thhold else 1 for item in y_train_pred]
                 y_test_pred01 = [0 if item < thhold else 1 for item in y_test_pred]
                 if print_:
-                    print('... Evaluation:')
-                    print('... Training set: F1 - ', f1_score(self.y_train, y_train_pred01))
-                    print('...... confusion matrix: ', confusion_matrix(self.y_train, y_train_pred01).ravel())
+                    logger.debug('... Evaluation:')
+                    logger.debug('... Training set: F1 - ', f1_score(self.y_train, y_train_pred01))
+                    logger.debug('...... confusion matrix: ', confusion_matrix(self.y_train, y_train_pred01).ravel())
 
-                    print('... Testing set: F1 - ', f1_score(self.y_test, y_test_pred01))
-                    print('...... confusion matrix: ', confusion_matrix(self.y_test, y_test_pred01).ravel())
+                    logger.debug('... Testing set: F1 - ', f1_score(self.y_test, y_test_pred01))
+                    logger.debug('...... confusion matrix: ', confusion_matrix(self.y_test, y_test_pred01).ravel())
                 f1_test.append(f1_score(self.y_test, y_test_pred01))
             else:
-                print('... Evaluation:')
-                print('... Training set: MSE - ', mean_squared_error(self.y_train, y_train_pred))
+                logger.debug('... Evaluation:')
+                logger.debug('... Training set: MSE - ', mean_squared_error(self.y_train, y_train_pred))
 
-                print('... Testing set: MSE - ', mean_squared_error(self.y_test, y_test_pred))
+                logger.debug('... Testing set: MSE - ', mean_squared_error(self.y_test, y_test_pred))
                 f1_test.append(mean_squared_error(self.y_test, y_test_pred))
         self.f1_test = np.mean(f1_test)
 
@@ -183,8 +188,8 @@ class dragonnet():
         return psi_n, psi_tmle, initial_loss, final_loss, g_loss
 
     def split_output(self, yt_hat, t, y, y_scaler, x):
-        q_t0 = self.y_scaler.inverse_transform(yt_hat[:, 0].copy())
-        q_t1 = self.y_scaler.inverse_transform(yt_hat[:, 1].copy())
+        q_t0 = self.y_scaler.inverse_transform(yt_hat[:, 0].copy().reshape(-1,1))
+        q_t1 = self.y_scaler.inverse_transform(yt_hat[:, 1].copy().reshape(-1,1))
         g = yt_hat[:, 2].copy()
 
         if yt_hat.shape[1] == 4:

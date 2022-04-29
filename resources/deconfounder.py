@@ -1,17 +1,22 @@
-import pandas as pd
-import numpy as np
-import warnings
 import functools
-from scipy import sparse, stats
+import logging
+import numpy as np
+import pandas as pd
+import warnings
 import tensorflow.compat.v1 as tf
-from tensorflow.keras import optimizers
 import tensorflow_probability as tfp
+
+from scipy import sparse, stats
 from sklearn import linear_model, calibration
-from tensorflow_probability import distributions as tfd
-from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, roc_curve, roc_auc_score
+from sklearn.metrics import confusion_matrix, f1_score, roc_curve, roc_auc_score
 from sklearn.metrics import mean_squared_error
+from tensorflow.keras import optimizers
+from tensorflow_probability import distributions as tfd
+
 tf.disable_v2_behavior()
 tf.enable_eager_execution()
+
+logger = logging.getLogger(__name__)
 
 
 class deconfounder_algorithm:
@@ -34,7 +39,7 @@ class deconfounder_algorithm:
             self.binarytarget = True
         else:
             self.binarytarget = False
-        print('Running DA')
+        #print('Running DA')
 
     def fit(self, b=100, holdout_prop=0.2, alpha=0.05, class_weight={0: 1, 0: 1}):
         """
@@ -50,17 +55,17 @@ class deconfounder_algorithm:
         Note: Due to time constrains, only one PPCA is fitted
         """
         x, x_val, holdout_mask = self.daHoldout(holdout_prop)
-        print('... Done Holdout')
+        logger.debug('... Done Holdout')
         w, z, x_gen = self.FM_Prob_PCA(x, True)
         # print('line 46 ppca shapes', w.shape, z.shape, x_gen)
-        print('... Done PPCA')
+        logger.debug('... Done PPCA')
         pvalue = self.PredictiveCheck(x_val, x_gen, w, z, holdout_mask)
         low = stats.norm(0, 1).ppf(alpha / 2)
         up = stats.norm(0, 1).ppf(1 - alpha / 2)
         del x_gen
         if 0.1 < pvalue < 0.9:
-            print('... Pass Predictive Check: ' + str(pvalue))
-            print('... Fitting Outcome Model')
+            logger.debug('... Pass Predictive Check: ' + str(pvalue))
+            logger.debug('... Fitting Outcome Model')
             coef = []
             pca = w
             # Bootstrap to calculate the coefs
@@ -88,7 +93,7 @@ class deconfounder_algorithm:
             else:
                 _, roc = self.OutcomeModel_Regression(pca, roc_flag=True)
         else:
-            print('Failed on Predictive Check. Suggetions: trying a different K')
+            logger.debug('Failed on Predictive Check. Suggetions: trying a different K')
             coef_m = []
             coef_z = []
             roc = []
@@ -243,14 +248,14 @@ class deconfounder_algorithm:
 
             y_test_predp1 = [i[1] for i in y_test_predp]
             if self.print_:
-                print('\n... Evaluation:')
+                logger.debug('\n... Evaluation:')
 
-                print('... Training set: F1 - ', f1_score(self.y_train, y_train_pred),
+                logger.debug('... Training set: F1 - ', f1_score(self.y_train, y_train_pred),
                       sum(y_train_pred), sum(self.y_train))
-                print('...... confusion matrix: \n', confusion_matrix(self.y_train, y_train_pred).ravel())
+                logger.debug('...... confusion matrix: \n', confusion_matrix(self.y_train, y_train_pred).ravel())
 
-                print('... Testing set: F1 - ', f1_score(self.y_test, y_test_pred), sum(y_test_pred), sum(self.y_test))
-                print('...... confusion matrix: \n', confusion_matrix(self.y_test, y_test_pred).ravel())
+                logger.debug('... Testing set: F1 - ', f1_score(self.y_test, y_test_pred), sum(y_test_pred), sum(self.y_test))
+                logger.debug('...... confusion matrix: \n', confusion_matrix(self.y_test, y_test_pred).ravel())
             fpr, tpr, _ = roc_curve(self.y_test, y_test_predp1)
             auc = roc_auc_score(self.y_test, y_test_predp1)
             roc = {'learners': 'DA',
@@ -292,10 +297,10 @@ class deconfounder_algorithm:
             y_train_pred = modelcv.predict(X_train)
 
             if self.print_:
-                print('\n... Evaluation:')
+                logger.debug('\n... Evaluation:')
 
-                print('... Training set: F1 - ', mean_squared_error(self.y_train, y_train_pred))
-                print('... Testing set: F1 - ', mean_squared_error(self.y_test, y_test_pred))
+                logger.debug('... Training set: F1 - ', mean_squared_error(self.y_train, y_train_pred))
+                logger.debug('... Testing set: F1 - ', mean_squared_error(self.y_test, y_test_pred))
             # fpr, tpr, _ = roc_curve(self.y_test, y_test_predp1)
             # auc = roc_auc_score(self.y_test, y_test_predp1)
             mse = mean_squared_error(self.y_test, y_test_pred)

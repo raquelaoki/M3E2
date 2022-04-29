@@ -1,26 +1,29 @@
 # Reference https://github.com/kim-hyunsu/CEVAE-pyro/blob/master/model/vae.py
 # https://github.com/AMLab-Amsterdam/CEVAE/blob/master/cevae_ihdp.py
 # https://github.com/rik-helwegen/CEVAE_pytorch/blob/master/main.py
-import sys
+import logging
 import numpy as np
 import pandas as pd
+import sys
 import torch
-import torch.nn as nn
-from torch import optim, Tensor
 import torch.distributions
+import torch.nn as nn
 import torch.nn.functional as F
+
+from collections import defaultdict
+from sklearn.metrics import f1_score, mean_squared_error, roc_curve, roc_auc_score
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from torch import optim, Tensor
 from torch.distributions import bernoulli, normal
 from torch.utils.data import Dataset, DataLoader, TensorDataset
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.model_selection import train_test_split
-from collections import defaultdict
 from tqdm import tqdm
-from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
-from sklearn.metrics import roc_curve, roc_auc_score, mean_squared_error
 
-print('Available devices ', torch.cuda.device_count())
-print('Current cuda device ', torch.cuda.current_device())
-cuda = torch.device('cuda')
+#print('Available devices ', torch.cuda.device_count())
+#print('Current cuda device ', torch.cuda.current_device())
+#cuda = torch.device('cuda')
+#device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+logger = logging.getLogger(__name__)
 
 
 class Data(object):
@@ -349,11 +352,11 @@ class CEVAE():
                     #fpr.append(rmse)
                     #tpr.append(rmse)
             except ValueError:
-                print('except line 346')
+                logger.debug('except line 346')
                 cevae_cate[i] = np.nan
                 except_error += 1
         if print_:
-            print('... Evaluation (average ', len(f1), ' treatments): F1 =', np.mean(f1), ' Errors:',except_error)
+            logger.debug('... Evaluation (average ', len(f1), ' treatments): F1 =', np.mean(f1), ' Errors:',except_error)
         return cevae_cate, np.mean(f1)
 
     def fit(self, train_loader, test_loader):

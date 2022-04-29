@@ -13,6 +13,9 @@ CEVAE/
 __pycache__/
 savedmodels/
 
+# zip
+.zip
+
 # Jupyter Notebook
 .ipynb_checkpoints
 

@@ -1,10 +1,14 @@
-import tensorflow as tf
+import logging
 import keras.backend as K
-from keras.engine.topology import Layer
-from keras.metrics import binary_accuracy
-from keras.layers import Input, Dense, Concatenate, BatchNormalization, Dropout
-from keras.models import Model
+import tensorflow as tf
+
 from keras import regularizers
+from keras.layers import Input, Dense, Concatenate, BatchNormalization, Dropout
+from keras.metrics import binary_accuracy
+from keras.models import Model
+from tensorflow.keras.layers import Layer
+
+logger = logging.getLogger(__name__)
 
 #Reference: https://github.com/claudiashi57/dragonnet
 
@@ -115,7 +119,7 @@ def make_dragonnet(input_dim, reg_l2, u1 = 200, u2=100, u3=1):
     t_l1 = 0.
     t_l2 = reg_l2
     inputs = Input(shape=(input_dim,), name='input')
-    print('Making Dragonnet dimensions', u1, u2, u3)
+    logger.debug('Making Dragonnet dimensions', u1, u2, u3)
 
     # representation
     x = Dense(units=u1, activation='elu', kernel_initializer='RandomNormal')(inputs)

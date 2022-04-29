@@ -1,12 +1,16 @@
+import logging
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
+
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, confusion_matrix, mean_squared_error, f1_score, accuracy_score
 from sklearn.metrics import precision_score
+
+logger = logging.getLogger(__name__)
 
 
 class data_nn(object):
@@ -25,7 +29,7 @@ class data_nn(object):
         if X2_cols is None:
             X2_cols = range(X_train.shape[1])
         self.X2_cols = X2_cols
-        print('M3E2: Train Shape ', self.X_train.shape, self.T_train.shape)
+        logger.debug('M3E2: Train Shape ', self.X_train.shape, self.T_train.shape)
 
     def loader(self, shuffle=True, batch=250, seed=1):
         X_train, X_val, y_train, y_val, T_train, T_val = train_test_split(self.X_train, self.y_train, self.T_train,
@@ -77,12 +81,19 @@ def metric_precision(pred, obs, type='binary'):
         return 999
 
 
-def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, num_features, X1_cols, X2_cols=None,
-           use_bias_y=False):
+def fit_nn(loader_train, loader_val, loader_test,
+           params,
+           treatement_columns,
+           num_features,
+           X1_cols, X2_cols=None,
+           use_bias_y=False,
+           path_save_model='savedmodels/'
+           ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = M3E2(data='gwas', num_treat=len(treatement_columns), num_exp=params['num_exp'],
                  num_features=num_features, dropoutp=params['dropoutp'], X1_cols=X1_cols, X2_cols=X2_cols,
-                 hidden1=params['hidden1'], hidden2=params['hidden2'], use_bias_y=use_bias_y, units_exp=params['units_exp'])
+                 hidden1=params['hidden1'], hidden2=params['hidden2'], use_bias_y=use_bias_y,
+                 units_exp=params['units_exp'])
     if params['type_treatment'] == 'binary':
         criterion = [nn.BCEWithLogitsLoss(pos_weight=torch.tensor(params['pos_weights'][i])) for i in
                      range(model.num_treat)]
@@ -113,7 +124,7 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
     else:
         best_val_metric = 999
     best_epoch = 0
-    print('... Training')
+    logger.debug('... Training')
 
     for e in range(params['max_epochs']):
         metric_train_, metric_val_ = np.zeros(model.num_treat + 1), np.zeros(model.num_treat + 1)
@@ -207,38 +218,38 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
                 if np.sum(metric_val[e][-1]) > best_val_metric:
                     best_epoch = e
                     best_val_metric = np.sum(metric_val[e][-1])
-                    path = 'savedmodels/m3e2_' + params['id'] + 'best.pth'
+                    path = path_save_model + 'm3e2_' + params['id'] + 'best.pth'
                     torch.save(model.state_dict(), path)
             else:
                 # smallest RMSE
                 if np.sum(metric_val[e][-1]) < best_val_metric:
                     best_epoch = e
                     best_val_metric = np.sum(metric_val[e][-1])
-                    path = 'savedmodels/m3e2_' + params['id'] + 'best.pth'
+                    path = path_save_model + 'm3e2_' + params['id'] + 'best.pth'
                     torch.save(model.state_dict(), path)
 
         # Printing
         if e % params['print'] == 0:
             if X2_cols is not None:
-                print('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), 'metric', metric_train[e])
-                print('... Val: loss ', round(loss_val[e], 2), 'metric', metric_val[e])
-                print('... Best Epoch', metric_val[e][-1])
-                print('No Weights', print_losses_noweights)
-                print('Weights', print_losses_withweights)
+                logger.debug('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), 'metric', metric_train[e])
+                logger.debug('... Val: loss ', round(loss_val[e], 2), 'metric', metric_val[e])
+                logger.debug('... Best Epoch', metric_val[e][-1])
+                logger.debug('No Weights', print_losses_noweights)
+                logger.debug('Weights', print_losses_withweights)
             else:
-                print('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), 'metric ', metric_train[e],
-                      '\n... Val: loss ', round(loss_val[e], 2), 'metric ', metric_val[e])
+                logger.debug('...... ', e, ' \n... Train: loss ', round(loss_train[e], 2), 'metric ', metric_train[e],
+                             '\n... Val: loss ', round(loss_val[e], 2), 'metric ', metric_val[e])
         # Decay
         if e % params['decay'] == 0:
             opt_scheduler.step()
 
     if params['best_validation_test'] and best_epoch > 0:
-        print('... Loading Best validation (epoch ', best_epoch, ')')
+        logger.debug('... Loading Best validation (epoch ', best_epoch, ')')
         model.load_state_dict(torch.load(path))
     else:
         print('... BEST MODEL WAS AT EPOCH 0')
 
-    print('... Final Metrics - Target')
+    logger.debug('... Final Metrics - Target')
     data_ = [loader_train, loader_val, loader_test]
     data_name = ['Train', 'Val', 'Test']
     sigmoid = nn.Sigmoid()
@@ -257,16 +268,17 @@ def fit_nn(loader_train, loader_val, loader_test, params, treatement_columns, nu
             metric = np.nan()
 
         if params['type_target'] == 'binary':
-            print('......', data_name[i], ': ', round(metric, 3), ' and precision:', precision_score(y01_pred, y))
+            logger.debug('......', data_name[i], ': ', round(metric, 3), ' and precision:',
+                         precision_score(y01_pred, y))
             if data_name[i] == 'Test':
                 f1 = f1_score(y, y01_pred)
         else:
-            print('......', data_name[i], ': ', round(metric, 3), ' and RMSE:', mean_squared_error(y01_pred, y))
-            print(y01_pred[0:6], '\n', y[0:6])
+            logger.debug('......', data_name[i], ': ', round(metric, 3), ' and RMSE:', mean_squared_error(y01_pred, y))
+            logger.debug(y01_pred[0:6], '\n', y[0:6])
             if data_name[i] == 'Test':
-                print('mean_squared_error')
+                logger.debug('mean_squared_error')
                 f1 = mean_squared_error(y, y01_pred)
-                print('obs ',y[0:10],'\npred ' ,y01_pred[0:10], f1)
+                logger.debug('obs ', y[0:10], '\npred ', y01_pred[0:10], f1)
     return model.outcomeY[0:model.num_treat].cpu().detach().numpy().reshape(-1), f1
 
 
@@ -334,7 +346,7 @@ class M3E2(nn.Module):
         self.tahn = nn.Tanh()
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
-        print('... Model initialization done!')
+        logger.debug('... Model initialization done!')
 
     def forward(self, inputs, treat_assignment=None):
 
@@ -351,7 +363,7 @@ class M3E2(nn.Module):
 
         ''' Calculating Experts'''
         for i in range(self.num_exp):
-            #print('line 355', inputs.shape, self.expert_kernels[i].shape)
+            # print('line 355', inputs.shape, self.expert_kernels[i].shape)
             aux = torch.mm(inputs, self.expert_kernels[i]).reshape((n, self.expert_kernels[i].shape[1]))
             if i == 0:
                 expert_outputs = self.expert_output[i](aux)
@@ -401,7 +413,7 @@ class M3E2(nn.Module):
         HY = torch.reshape(HY, (HY.shape[1], HY.shape[2]))
 
         if treat_assignment is None:
-            print('No Treatment')
+            logger.debug('No Treatment')
             # Testing
             aux = torch.cat((output, HY), 1)
             aux = self.relu(aux)
