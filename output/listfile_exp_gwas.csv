@@ -1,11 +1,11 @@
-config,sample_size,treatments,confounders
-config1a,2000,5,995
-config1b,4000,5,995
-config1c,6000,5,995
-config1d,6000,1,500
-config1e,6000,3,500
-config1f,6000,6,500
-config1g,6000,9,500
-config1i,6000,5,100
-config1j,6000,5,500
-config1k,6000,5,1000
+config,sample_size,treatments,confounders, note
+config1a,2000,5,995, done
+config1b,4000,5,995, done
+config1c,6000,5,995, done
+config1d,6000,1,500, done
+config1e,6000,3,500, done
+config1f,6000,6,500, done
+config1g,6000,9,500, done
+config1i,6000,5,100, done
+config1j,6000,5,500, done
+config1k,6000,5,1000, done
