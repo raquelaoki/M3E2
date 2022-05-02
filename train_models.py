@@ -316,15 +316,19 @@ def organize_output(experiments, true_effect, exp_time=None, f1_scores=None, gwa
     """
     Treatments = experiments['causes']
     experiments.set_index('causes', inplace=True)
-    experiments['TrueTreat'] = true_effect * (-1)
+    if gwas:
+        experiments['TrueTreat'] = true_effect * (-1)
+    else:
+        experiments['TrueTreat'] = true_effect
+
     Treatments_ate = np.transpose(experiments)
     BaselinesNames = experiments.columns
     mae = []
     for col in BaselinesNames:
-        if gwas:
-            dif = np.abs(experiments[col] - experiments['TrueTreat'])
-        else:
-            dif = np.abs(experiments[col] + experiments['TrueTreat'])
+        #if gwas:
+        dif = np.abs(experiments[col] - experiments['TrueTreat'])
+        #else:
+        #    dif = np.abs(experiments[col] + experiments['TrueTreat'])
         mae.append(np.nanmean(dif))
     output = pd.DataFrame({'Method': BaselinesNames, 'MAE': mae})
     exp_time['TrueTreat'] = 0
