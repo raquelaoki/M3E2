@@ -108,20 +108,20 @@ def plot_barplot(ax, data, order, colors, title, ylabel='MAE'):
 
 
 def plot_lines(data, listconfigs, ax, colors, x, ymin=0.10, ymax=0.26,
-               xlabel='x. bla', ylabel='MAE', addLegend=False):
-    cat_type = CategoricalDtype(categories=pd.unique(data[x]).astype(str), ordered=True)
+               xlabel='x. bla', ylabel='MAE', addLegend=False, categories = []):
+    if len(categories)==0:
+        cat_type = CategoricalDtype(categories=pd.unique(data[x]).astype(str), ordered=True)
+    else:
+        cat_type = CategoricalDtype(categories=categories, ordered=True)
     data[x] = data[x].astype(str)
     data[x] = data[x].astype(cat_type)
 
     data = data[data['config'].isin(listconfigs)]
-    # if len(style_order)==0:
+
     sns.lineplot(data=data, x=x, y="MAE", ax=ax, hue='Method',
                  style='Method', markers=True, palette=sns.color_palette(colors),
                  legend='brief', markersize=12)
-    # else:
-    #    sns.lineplot(data=data, x=x, y="MAE", ax=ax, hue='Method',
-    #                 style='Method', markers=True, palette=sns.color_palette(colors),
-    #                 legend='brief', markersize=12, style_order=style_order)
+
     ax.axis(ymin=ymin, ymax=ymax)
     ax.set(xlabel=xlabel)
     if addLegend:
