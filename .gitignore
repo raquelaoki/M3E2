@@ -1,17 +1,16 @@
 # New folders
 __MACOSX
 .DS_Store
-CompBioAndSimulated_Datasets
 .idea
 .idea/
 slurm/
-ParKCa
 *.zip
 plots/
 cevae_env/
 CEVAE/
 __pycache__/
 savedmodels/
+output/
 
 # zip
 .zip
