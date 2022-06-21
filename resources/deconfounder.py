@@ -39,7 +39,6 @@ class deconfounder_algorithm:
             self.binarytarget = True
         else:
             self.binarytarget = False
-        #print('Running DA')
 
     def fit(self, b=100, holdout_prop=0.2, alpha=0.05, class_weight={0: 1, 0: 1}):
         """
@@ -54,12 +53,11 @@ class deconfounder_algorithm:
         - coef: calculated using bootstrap
         Note: Due to time constrains, only one PPCA is fitted
         """
-        x, x_val, holdout_mask = self.daHoldout(holdout_prop)
+        x, x_val, holdout_mask = self.daHoldout(holdout_prop=holdout_prop)
         logger.debug('... Done Holdout')
-        w, z, x_gen = self.FM_Prob_PCA(x, True)
-        # print('line 46 ppca shapes', w.shape, z.shape, x_gen)
+        w, z, x_gen = self.FM_Prob_PCA(x=x, flag_pred=True)
         logger.debug('... Done PPCA')
-        pvalue = self.PredictiveCheck(x_val, x_gen, w, z, holdout_mask)
+        pvalue = self.PredictiveCheck(x_val=x_val, x_gen=x_gen, w=w, z=z, holdout_mask=holdout_mask)
         low = stats.norm(0, 1).ppf(alpha / 2)
         up = stats.norm(0, 1).ppf(1 - alpha / 2)
         del x_gen
@@ -72,9 +70,9 @@ class deconfounder_algorithm:
             for i in range(b):
                 rows = np.random.choice(self.X_train.shape[0], int(self.X_train.shape[0] * 0.85), replace=False)
                 if self.binarytarget:
-                    coef_, _ = self.OutcomeModel_LR(pca, rows, roc_flag=False, class_weight=class_weight)
+                    coef_, _ = self.OutcomeModel_LR(pca=pca, rows=rows, roc_flag=False, class_weight=class_weight)
                 else:
-                    coef_, _ = self.OutcomeModel_Regression(pca, rows, roc_flag=False)
+                    coef_, _ = self.OutcomeModel_Regression(pca=pca, rows=rows, roc_flag=False)
                 coef.append(coef_)
             coef = np.matrix(coef)
             coef = coef[:, 0:self.X_train.shape[1]]  # ?
@@ -89,9 +87,9 @@ class deconfounder_algorithm:
             del coef_var, coef, coef_
             # w, z, x_gen = FM_Prob_PCA(train, k, False)
             if self.binarytarget:
-                _, roc = self.OutcomeModel_LR(pca, roc_flag=True)
+                _, roc = self.OutcomeModel_LR(pca=pca, roc_flag=True)
             else:
-                _, roc = self.OutcomeModel_Regression(pca, roc_flag=True)
+                _, roc = self.OutcomeModel_Regression(pca=pca, roc_flag=True)
         else:
             logger.debug('Failed on Predictive Check. Suggetions: trying a different K')
             coef_m = []
@@ -100,11 +98,11 @@ class deconfounder_algorithm:
 
         return np.multiply(coef_m, coef_z), coef_m, roc, self.f1_test
 
-    def daHoldout(self, holdout_portion):
+    def daHoldout(self, holdout_prop):
         """
         Hold out a few values from train set to calculate predictive check
         """
-        n_holdout = int(holdout_portion * self.n * self.ncol)
+        n_holdout = int(holdout_prop * self.n * self.ncol)
         holdout_row = np.random.randint(self.n, size=n_holdout)
         holdout_col = np.random.randint(self.ncol, size=n_holdout)
         holdout_mask = (

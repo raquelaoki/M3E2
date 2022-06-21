@@ -1,4 +1,4 @@
-# New folders
+#Folders
 __MACOSX
 .DS_Store
 .idea
@@ -9,8 +9,8 @@ plots/
 cevae_env/
 CEVAE/
 __pycache__/
-savedmodels/
-output/
+results/
+
 
 # zip
 .zip

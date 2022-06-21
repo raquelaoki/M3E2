@@ -1,3 +1,10 @@
+"""Making Dragonnet.
+
+Reference: https://github.com/claudiashi57/dragonnet
+
+Losses, metrics, and creation of the model.
+"""
+
 import logging
 import keras.backend as K
 import tensorflow as tf
@@ -10,14 +17,12 @@ from tensorflow.keras.layers import Layer
 
 logger = logging.getLogger(__name__)
 
-#Reference: https://github.com/claudiashi57/dragonnet
 
 def binary_classification_loss(concat_true, concat_pred):
     t_true = concat_true[:, 1]
     t_pred = concat_pred[:, 2]
     t_pred = (t_pred + 0.001) / 1.002
     losst = tf.reduce_sum(K.binary_crossentropy(t_true, t_pred))
-
     return losst
 
 
@@ -53,7 +58,6 @@ def treatment_accuracy(concat_true, concat_pred):
     t_true = concat_true[:, 1]
     t_pred = concat_pred[:, 2]
     return binary_accuracy(t_true, t_pred)
-
 
 
 def track_epsilon(concat_true, concat_pred):

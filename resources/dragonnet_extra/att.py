@@ -1,10 +1,14 @@
+"""Dragonnet.
+
+Extract from github.com/claudiashi57/dragonnet.
+Fork from https://github.com/claudiashi57/dragonnet/blob/master/src/semi_parametric_estimation/att.py
+"""
+
 import numpy as np
 from scipy.special import logit, expit
 from scipy.optimize import minimize
 
 from .helpers import truncate_all_by_g, cross_entropy, mse
-
-#Reference: https://github.com/claudiashi57/dragonnet
 
 
 def _perturbed_model(q_t0, q_t1, g, t, q, eps):

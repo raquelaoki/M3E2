@@ -325,10 +325,7 @@ def organize_output(experiments, true_effect, exp_time=None, f1_scores=None, gwa
     BaselinesNames = experiments.columns
     mae = []
     for col in BaselinesNames:
-        #if gwas:
         dif = np.abs(experiments[col] - experiments['TrueTreat'])
-        #else:
-        #    dif = np.abs(experiments[col] + experiments['TrueTreat'])
         mae.append(np.nanmean(dif))
     output = pd.DataFrame({'Method': BaselinesNames, 'MAE': mae})
     exp_time['TrueTreat'] = 0

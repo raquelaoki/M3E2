@@ -1,8 +1,0 @@
-config,sample_size,treatments,confounders, note
-config2a,2500,4,10, done
-config2b,5000,4,10, done
-config2c,10000,4,10, done
-config2d,10000,4,5, done
-config2e,10000,4,25, done
-config2f,10000,4,125, running_kaggle - missing last one
-config2g,10000,4,625, done

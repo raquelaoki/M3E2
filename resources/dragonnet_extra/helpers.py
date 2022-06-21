@@ -1,8 +1,12 @@
+"""Dragonnet.
+
+Extract from github.com/claudiashi57/dragonnet.
+Fork from https://github.com/claudiashi57/dragonnet/blob/master/src/semi_parametric_estimation/helpers.py
+"""
+
 import numpy as np
 from scipy.special import logit
 import sklearn.linear_model as lm
-
-#Reference: https://github.com/claudiashi57/dragonnet
 
 
 def calibrate_g(g, t):
@@ -42,7 +46,6 @@ def truncate_all_by_g(q_t0, q_t1, g, t, y, truncate_level=0.05):
     y = truncate_by_g(np.copy(y), orig_g, truncate_level)
 
     return q_t0, q_t1, g, t, y
-
 
 
 def cross_entropy(y, p):

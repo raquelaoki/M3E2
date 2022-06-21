@@ -1,6 +1,11 @@
-# Reference https://github.com/kim-hyunsu/CEVAE-pyro/blob/master/model/vae.py
-# https://github.com/AMLab-Amsterdam/CEVAE/blob/master/cevae_ihdp.py
-# https://github.com/rik-helwegen/CEVAE_pytorch/blob/master/main.py
+"""CEVAE implementation
+
+References:
+    https://github.com/kim-hyunsu/CEVAE-pyro/blob/master/model/vae.py
+    https://github.com/AMLab-Amsterdam/CEVAE/blob/master/cevae_ihdp.py
+    https://github.com/rik-helwegen/CEVAE_pytorch/blob/master/main.py
+"""
+
 import logging
 import numpy as np
 import pandas as pd
@@ -19,28 +24,22 @@ from torch.distributions import bernoulli, normal
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 from tqdm import tqdm
 
-#print('Available devices ', torch.cuda.device_count())
-#print('Current cuda device ', torch.cuda.current_device())
-#cuda = torch.device('cuda')
-#device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger = logging.getLogger(__name__)
 
 
 class Data(object):
-    # replications were over the treatments
+    # Replication over treatments.
     def __init__(self, X_train, X_test, y_train, y_test, treatments_columns, batch, binfeats=None, contfeats=None):
         self.treatments_columns = treatments_columns
-        # self.data_path = data_path
         self.batch = batch
         self.X_train = X_train.values
         self.y_train = y_train
         self.X_test = X_test.values
         self.y_test = y_test
-        # print('X _train shape', self.X_train.shape, binfeats)
-        self.binfeats = range(self.X_train.shape[1] - 1) if binfeats is None else np.delete(np.array(binfeats),-1)
-        # print('From data initialization', len(self.binfeats))
-        self.contfeats = [] if contfeats is None else list(contfeats)  # which features are continuous
-        # print('continuous', list(contfeats))
+        # Storage binary features.
+        self.binfeats = range(self.X_train.shape[1] - 1) if binfeats is None else np.delete(np.array(binfeats), -1)
+        # Storage continuous features.
+        self.contfeats = [] if contfeats is None else list(contfeats)
 
     def get_train_valid_test(self):
         for col in self.treatments_columns:
@@ -134,7 +133,6 @@ class p_t_z(nn.Module):
         self.dim_out = dim_out
 
         # dim_in is dim of latent space z
-        # print('Chekcin:', dim_in)
         self.input = nn.Linear(dim_in, dim_h)
         # loop through dimensions to create fully con. hidden layers, add params with ModuleList
         self.hidden = nn.ModuleList([nn.Linear(dim_h, dim_h) for _ in range(nh)])
@@ -287,7 +285,7 @@ class q_z_tyx(nn.Module):
         return z
 
 
-class CEVAE():
+class CEVAE:
     def __init__(self, X_train, X_test, y_train, y_test,
                  treatments_columns, z_dim=20,
                  h_dim=64, epochs=25, batch=100, lr=0.001,
@@ -295,7 +293,6 @@ class CEVAE():
                  binfeats=None, contfeats=None, binarytarget=True):
         super(CEVAE, self).__init__()
         self.treatments_columns = treatments_columns
-        # print('From cevae ini', len(binfeats))
         self.dataset = Data(X_train, X_test, y_train, y_test, treatments_columns, batch, binfeats, contfeats)
         self.z_dim = z_dim
         self.h_dim = h_dim
@@ -306,7 +303,6 @@ class CEVAE():
         self.print_every = print_every
         self.scaler = MinMaxScaler(feature_range=(0, 1))
         self.binarytarget = binarytarget
-        #print('...Shapes:', X_train.shape)
 
     def Find_Optimal_Cutoff(self, target, predicted):
         """ Find the optimal probability cutoff point for a classification model related to event rate
@@ -332,11 +328,8 @@ class CEVAE():
         f1, fpr, tpr, auc = [], [], [], []
         except_error = 0
         for i, (train_loader, test_loader, contfeats, binfeats) in enumerate(self.dataset.get_train_valid_test()):
-            # train contains: X, t, y
             try:
                 y0, y1, cevae_cate[i], y_test_pred, y_test = self.fit(train_loader, test_loader)
-                #print('line 336')
-                #print(y_test_pred, y_test)
                 if self.binarytarget:
                     thhold = self.Find_Optimal_Cutoff(y_test, y_test_pred)
                     y_test_pred01 = [0 if item < thhold else 1 for item in y_test_pred]
@@ -348,11 +341,8 @@ class CEVAE():
                 else:
                     rmse = mean_squared_error(y_test, y_test_pred)
                     f1.append(rmse)
-                    #auc.append(rmse)
-                    #fpr.append(rmse)
-                    #tpr.append(rmse)
             except ValueError:
-                logger.debug('except line 346')
+                logger.debug('Except - CEVAE.fit_all')
                 cevae_cate[i] = np.nan
                 except_error += 1
         if print_:
@@ -360,11 +350,8 @@ class CEVAE():
         return cevae_cate, np.mean(f1)
 
     def fit(self, train_loader, test_loader):
-        # try:
         # init networks (overwritten per replication)
         x_dim = len(self.dataset.binfeats) + len(self.dataset.contfeats)+1
-        #print('line 361', x_dim,len(self.dataset.binfeats) , len(self.dataset.contfeats))
-        # print('From initialization:', self.z_dim, len(self.dataset.binfeats))
         p_x_z_dist = p_x_z(dim_in=self.z_dim, nh=3, dim_h=self.h_dim, dim_out_bin=len(self.dataset.binfeats),
                            dim_out_con=len(self.dataset.contfeats)).cuda()
         p_t_z_dist = p_t_z(dim_in=self.z_dim, nh=1, dim_h=self.h_dim, dim_out=1).cuda()
@@ -372,7 +359,6 @@ class CEVAE():
         q_t_x_dist = q_t_x(dim_in=x_dim - 1, nh=1, dim_h=self.h_dim, dim_out=1).cuda()
         # t is not feed into network, therefore not increasing input size (y is fed).
         q_y_xt_dist = q_y_xt(dim_in=x_dim - 1, nh=3, dim_h=self.h_dim, dim_out=1).cuda()
-        #print('MY DIMENSION IS',len(self.dataset.binfeats) , len(self.dataset.contfeats) +1)
         q_z_tyx_dist = q_z_tyx(dim_in=len(self.dataset.binfeats) + len(self.dataset.contfeats)+1, nh=3,
                                dim_h=self.h_dim,
                                dim_out=self.z_dim).cuda()  # remove an 1 from dim_in

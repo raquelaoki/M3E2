@@ -1,13 +1,19 @@
-# M3E2
+# M3E2: Multi-gate Mixture-of-experts for Multi-treatment Effect Estimation
 
-Implementation of _M3E2: Multi-gate Mixture-of-experts for
-Multi-treatment Effect Estimation_.
+Author: Raquel Aoki
+Date: 2022/06/21
+
+M3E2 is an estimator for multiple treatments. Hence, instead of a single treetment T, there is a set of treatments 
+$\mathcal{T} = \{T_0, T_1,...,T_K\}$.  
+
+This repository contains the implementation of the baselines adopted in the paper. Some of these baselines were designed 
+for single treatment applications. Please check the paper for more details about the methods, adaption, and results [1]. 
+
 
 ## File structure: 
 * [model_m3e2.py](model_m3e2.py): Pytorch implementation of our proposed method; 
 * [train_models.py](train_models.py): Run the experiments (M3E2 and baselines)
 * [resources/.](resources): Code associated to our baselines;
-* [sh/.](sh) and [config/.](config): Contain the settings explored;
 * [output./](output): csv files with experimental results;
 * [M3E2_plots.ipynb](M3E2_plots.ipynb): make the plots;
 * [plots/.](plots): png images from experimental results;
@@ -15,11 +21,15 @@ Multi-treatment Effect Estimation_.
 
 ## Running Experiments
 
-1. Check [here](ComputeCanada.md) for instructions on how to use a cluster to run and submit all the experiments;
-2. To run locally or on Colab, please check TODO. 
+2. To run locally or on Colab, please check TODO.
 
 ## Intructions: 
-1. IF using CEVAE as baseline, the current implementation only supports 
-## TODO: 
-3. Add small unit test
-4. Add unit test
+1. If using CEVAE as baseline, the current implementation only supports CPU usage. 
+
+
+
+
+## References
+
+[1] Aoki, Raquel, Yizhou Chen, and Martin Ester. "M3E2: Multi-gate Mixture-of-experts for Multi-treatment Effect 
+Estimation." arXiv preprint arXiv:2112.07574 (2021). [link](https://arxiv.org/abs/2112.07574)

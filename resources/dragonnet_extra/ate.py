@@ -1,3 +1,10 @@
+"""Dragonnet.
+
+Extract from github.com/claudiashi57/dragonnet.
+Fork from https://github.com/claudiashi57/dragonnet/blob/master/src/semi_parametric_estimation/ate.py
+"""
+
+
 import numpy as np
 from scipy.special import logit, expit
 from scipy.optimize import minimize
@@ -5,7 +12,6 @@ from scipy.optimize import minimize
 from .helpers import truncate_by_g, mse, cross_entropy, truncate_all_by_g
 from .att import att_estimates
 
-#Reference: https://github.com/claudiashi57/dragonnet
 
 def _perturbed_model_bin_outcome(q_t0, q_t1, g, t, eps):
     """
@@ -80,8 +86,6 @@ def psi_aiptw(q_t0, q_t1, g, t, y, truncate_level=0.05):
     ite = h * (y - full_q) + q_t1 - q_t0
 
     return np.mean(ite)
-
-
 
 
 def psi_naive(q_t0, q_t1, g, t, y, truncate_level=0.):
