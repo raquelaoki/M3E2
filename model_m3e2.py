@@ -89,6 +89,24 @@ def fit_nn(loader_train, loader_val, loader_test,
            use_bias_y=False,
            path_save_model='savedmodels/'
            ):
+    """Fit M3E2 = creates model, loss function, and training.
+
+    Parameters
+    ----------
+    loader_train: TensorDataset obj.
+    loader_val: TensorDataset obj.
+    loader_test: TensorDataset obj.
+    params: dictionary.
+    treatement_columns: [int, int...].
+    Xlow_cols: [].
+    Xhigh_cols: [].
+    use_bias_y: bool.
+    path_save_model: str.
+
+    Returns
+    -------
+    y_pred, score
+    """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Creating model.
