@@ -23,8 +23,8 @@ parameters:
     units_exp: 4
     hidden1: 6
     hidden2: 3
-    type_treatment: 'continuous' #continuous, binary
-    type_target: 'binary'
+    is_binary_treatment: False
+    is_binary_target: True
     baselines: True
     baselines_list: ['DA','CEVAE','Dragonnet']
     loss_target: 6
