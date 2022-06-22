@@ -5,11 +5,11 @@ parameters:
     n_covariates: 995
     n_treatments: 5
     model: 'm3e2'
-    id: 'config1a'
+    id: 'debug_gwas'
     suffle: True
     best_validation_test: True
     batch_size: 100
-    max_epochs: 100
+    max_epochs: 2
     print: 50
     decay: 20
     alpha: 0.01 #decay downgrad
@@ -31,8 +31,8 @@ parameters:
     loss_da: 3
     loss_treat: 1
     loss_reg: 1
-    da_k: [15]
-    CEVAE_z_dim: 10
+    da_k: [ 5 ]
+    CEVAE_z_dim: 5
     Dragonnet_u1: 200
     Dragonnet_u2: 100
     Dragonnet_u3: 1

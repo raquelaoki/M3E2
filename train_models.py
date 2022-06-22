@@ -10,11 +10,11 @@ import yaml
 from sklearn.model_selection import train_test_split
 
 # Local Imports
-import dragonnet
+import resources.dragonnet
 import model_m3e2 as m3e2
-from cevae import CEVAE as CEVAE
+from resources.cevae import CEVAE as CEVAE
 from CompBioAndSimulated_Datasets.simulated_data_multicause import *
-from deconfounder import deconfounder_algorithm as DA
+from resources.deconfounder import deconfounder_algorithm as DA
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +39,11 @@ def main(config_path, seed_models, seed_data, path_save_model=''):
 
     params['baselines'] = params.get('baselines', False)
     if 'gwas' in params['data']:
-        params_b = {'DA': {'k': [15]},
-                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 10, 'binarytarget': True},
-                    'Dragonnet': {'u1': 200, 'u2': 100, 'u3': 1},
-                    'HiCI': {'batch': 250, 'type_target': 'binary', 'gamma': 0.05,
-                             'hidden1': 64, 'hidden2': 32, 'loss_weight': [5, 0.05, 0.3]}}
+        # params = {'DA': {'k': [15]},
+        #             'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 10, 'binarytarget': True},
+        #             'Dragonnet': {'u1': 200, 'u2': 100, 'u3': 1},
+        #             'HiCI': {'batch': 250, 'type_target': 'binary', 'gamma': 0.05,
+        #                      'hidden1': 64, 'hidden2': 32, 'loss_weight': [5, 0.05, 0.3]}}
         params["n_treatments"] = params.get('n_treatments', 5)
         prop = params["n_treatments"] / (params["n_treatments"] + params['n_covariates'])
 
@@ -58,7 +58,7 @@ def main(config_path, seed_models, seed_data, path_save_model=''):
             results, experiment_time, score = baselines(BaselinesList=params['baselines_list'],
                                                         X=pd.DataFrame(X),
                                                         y=y01,
-                                                        ParamsList=params_b,
+                                                        ParamsList=params,
                                                         TreatCols=treatement_columns,
                                                         timeit=True,
                                                         seed=seed_models)
@@ -81,12 +81,12 @@ def main(config_path, seed_models, seed_data, path_save_model=''):
                                  Xhigh_cols=Xhigh_cols,
                                  results=results)
     elif 'copula' in params['data']:
-        params_b = {'DA': {'k': [5]},
-                    'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 5, 'binarytarget': True},
-                    'Dragonnet': {'u1': 10, 'u2': 5, 'u3': 1},
-                    'HiCI': {'batch': 250, 'type_target': 'continous', 'gamma': 0.1,
-                             'hidden1': 10, 'hidden2': 4, 'loss_weight': [1, 0.2, 0.01]}
-                    }
+        # params = {'DA': {'k': [5]},
+        #             'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 5, 'binarytarget': True},
+        #             'Dragonnet': {'u1': 10, 'u2': 5, 'u3': 1},
+        #             'HiCI': {'batch': 250, 'type_target': 'continous', 'gamma': 0.1,
+        #                      'hidden1': 10, 'hidden2': 4, 'loss_weight': [1, 0.2, 0.01]}
+        #             }
 
         sdata_copula = copula_simulated_data(seed=seed_data, n=params['n_sample'], s=params['n_covariates'])
         X, y, y01, treatement_columns, true_effect = sdata_copula.generate_samples()
@@ -95,7 +95,7 @@ def main(config_path, seed_models, seed_data, path_save_model=''):
             results, experiment_time, score = baselines(BaselinesList=params['baselines_list'],
                                                         X=pd.DataFrame(X),
                                                         y=y01,
-                                                        ParamsList=params_b,
+                                                        ParamsList=params,
                                                         TreatCols=treatement_columns,
                                                         timeit=True,
                                                         seed=seed_models)
@@ -119,15 +119,15 @@ def main(config_path, seed_models, seed_data, path_save_model=''):
         sdata_ihdp = ihdp_data(id=seed_data)
         X, y, treatement_columns, true_effect = sdata_ihdp.generate_samples()
 
-        params_b = {'DA': {'k': [5]},
-                    'CEVAE': {'num_epochs': 150, 'batch': 50, 'z_dim': 5, 'binarytarget': False},
-                    'Dragonnet': {'u1': 200, 'u2': 100, 'u3': 1}}  # same as paper
+        # params = {'DA': {'k': [5]},
+        #             'CEVAE': {'num_epochs': 150, 'batch': 50, 'z_dim': 5, 'binarytarget': False},
+        #             'Dragonnet': {'u1': 200, 'u2': 100, 'u3': 1}}  # same as paper
 
         if params['baselines']:
             results, experiment_time, score = baselines(BaselinesList=params['baselines_list'],
                                                         X=X,
                                                         y=y,
-                                                        ParamsList=params_b,
+                                                        ParamsList=params,
                                                         TreatCols=treatement_columns,
                                                         timeit=True,
                                                         seed=seed_models)
@@ -243,15 +243,15 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, timeit=T
         torch.manual_seed(seed_models)
         start_time = time.time()
         print('...Running DA')
-        ParamsList['DA']['k'] = ParamsList['DA'].get('k', 15)  # if exploring multiple latent sizes
-        for k in ParamsList['DA']['k']:
-            if len(ParamsList['DA']['k']) > 1:
+        ParamsList['da_k'] = ParamsList.get('da_k', 15)  # if exploring multiple latent sizes
+        for k in ParamsList['da_k']:
+            if len(ParamsList['da_k']) > 1:
                 coln = 'DA_' + str(k)
             else:
                 coln = 'DA'
             model_da = DA(X_train, X_test, y_train, y_test, k, print_=False)
-            ParamsList['DA']['class_weight'] = ParamsList['DA'].get('class_weight', {0: 1, 1: 1})
-            coef, coef_continuos, roc, score['DA'] = model_da.fit(class_weight=ParamsList['DA']['class_weight'])
+            ParamsList['da_class_weight'] = ParamsList.get('da_class_weight', {0: 1, 1: 1})
+            coef, coef_continuos, roc, score['DA'] = model_da.fit(class_weight=ParamsList['da_class_weight'])
             results_table[coln] = coef_continuos[TreatCols]
         times['DA'] = time.time() - start_time
         logger.debug('\nDone!')
@@ -271,9 +271,13 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, timeit=T
                                            y_test=y_test,
                                            treatments_columns=TreatCols)
         model_dragon.fit_all(is_targeted_regularization=False,
-                             u1=ParamsList['Dragonnet']['u1'],
-                             u2=ParamsList['Dragonnet']['u2'],
-                             u3=ParamsList['Dragonnet']['u3'])
+                             u1=ParamsList['Dragonnet_u1'],
+                             u2=ParamsList['Dragonnet_u2'],
+                             u3=ParamsList['Dragonnet_u3'],
+                             epochs_adam=ParamsList['max_epochs'],
+                             epochs_sgd=ParamsList['max_epochs'],
+                             batch_size=ParamsList['batch_size']
+                             )
         ate = model_dragon.ate()
         results_table['Dragonnet'], score['Dragonnet'] = ate[0], model_dragon.score
         times['Dragonnet'] = time.time() - start_time
@@ -289,9 +293,7 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, timeit=T
         start_time = time.time()
         print('...Running CEVAE')
         logger.debug('Note: Treatments should be the first columns of X')
-        ParamsList['CEVAE']['epochs'] = ParamsList['CEVAE'].get('epochs', 100)
-        ParamsList['CEVAE']['batch'] = ParamsList['CEVAE'].get('batch', 200)
-        ParamsList['CEVAE']['z_dim'] = ParamsList['CEVAE'].get('z_dim', 5)
+        ParamsList['CEVAE_z_dim'] = ParamsList.get('CEVAE_z_dim', 5)
 
         confeatures, binfeatures = [], []
         for col in range(X_train01.shape[1]):
@@ -309,10 +311,10 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, timeit=T
                             treatments_columns=TreatCols,
                             binfeats=binfeatures,
                             contfeats=confeatures,
-                            epochs=ParamsList['CEVAE']['epochs'],
-                            batch=ParamsList['CEVAE']['batch'],
-                            z_dim=ParamsList['CEVAE']['z_dim'],
-                            binarytarget=ParamsList['CEVAE']['binarytarget'])
+                            epochs=ParamsList['max_epochs'],
+                            batch=ParamsList['batch_size'],
+                            z_dim=ParamsList['CEVAE_z_dim'],
+                            binarytarget=ParamsList['is_binary_target'])
         logger.debug('DONE INITIALIZATION')
         results_table['CEVAE'], score['CEVAE'] = model_cevae.fit_all(print_=False)
         times['CEVAE'] = time.time() - start_time

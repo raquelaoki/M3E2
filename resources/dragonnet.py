@@ -16,11 +16,11 @@ from sklearn.metrics import confusion_matrix, f1_score, roc_curve, mean_squared_
 from tensorflow.keras.optimizers import SGD, Adam
 
 # Local Imports
-from dragonnet_extra.models_dragonnet import make_dragonnet
-from dragonnet_extra.models_dragonnet import binary_classification_loss, regression_loss
-from dragonnet_extra.models_dragonnet import treatment_accuracy, track_epsilon
-from dragonnet_extra.models_dragonnet import dragonnet_loss_binarycross, make_tarreg_loss
-from dragonnet_extra.ate import psi_naive, psi_tmle_cont_outcome
+from resources.dragonnet_extra.models_dragonnet import make_dragonnet
+from resources.dragonnet_extra.models_dragonnet import binary_classification_loss, regression_loss
+from resources.dragonnet_extra.models_dragonnet import treatment_accuracy, track_epsilon
+from resources.dragonnet_extra.models_dragonnet import dragonnet_loss_binarycross, make_tarreg_loss
+from resources.dragonnet_extra.ate import psi_naive, psi_tmle_cont_outcome
 
 logger = logging.getLogger(__name__)
 

@@ -28,4 +28,9 @@ parameters:
     loss_da: 5
     loss_treat: 4
     loss_reg: 1
+    da_k: [ 5 ]
+    CEVAE_z_dim: 5
+    Dragonnet_u1: 200
+    Dragonnet_u2: 100
+    Dragonnet_u3: 1
 
