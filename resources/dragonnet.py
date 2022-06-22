@@ -36,7 +36,7 @@ class dragonnet:
         self.treatments_columns = treatments_columns
         self.covariates_columns = [col for col in list(range(X_train.shape[1])) if col not in treatments_columns]
         self.y_scaler = None
-        self.f1_test = None
+        self.score = None
         self.test_output_list = []
         self.train_output_list = []
         self.all_output_list = []
@@ -68,7 +68,7 @@ class dragonnet:
         x_test = self.X_test[:, self.covariates_columns]
         y_train = self.y_train
         y_test = self.y_test
-        f1_test = []
+        score = []
 
         for t_col in self.treatments_columns:
             t_train = self.X_train[:, [t_col]]
@@ -86,7 +86,8 @@ class dragonnet:
                                                                                    epochs_adam=epochs_adam,
                                                                                    epochs_sgd=epochs_sgd,
                                                                                    u1=u1, u2=u2, u3=u3,
-                                                                                   seed=t_col)
+                                                                                   #seed=t_col
+                                                                                   )
             self.test_output_list.append(test_output)
             self.train_output_list.append(train_output)
             self.all_output_list.append(all_output)
@@ -109,14 +110,14 @@ class dragonnet:
 
                     logger.debug('... Testing set: F1 - ', f1_score(self.y_test, y_test_pred01))
                     logger.debug('...... confusion matrix: ', confusion_matrix(self.y_test, y_test_pred01).ravel())
-                f1_test.append(f1_score(self.y_test, y_test_pred01))
+                score.append(f1_score(self.y_test, y_test_pred01))
             else:
                 logger.debug('... Evaluation:')
                 logger.debug('... Training set: MSE - ', mean_squared_error(self.y_train, y_train_pred))
 
                 logger.debug('... Testing set: MSE - ', mean_squared_error(self.y_test, y_test_pred))
-                f1_test.append(mean_squared_error(self.y_test, y_test_pred))
-        self.f1_test = np.mean(f1_test)
+                score.append(mean_squared_error(self.y_test, y_test_pred))
+        self.score = np.mean(score)
 
     def train_and_predict_dragons(self, t_train, y_train, x_train, x_test,
                                   targeted_regularization=True, knob_loss=dragonnet_loss_binarycross,
@@ -160,12 +161,9 @@ class dragonnet:
         else:
             loss = knob_loss
 
-        tf.random.set_seed(seed)
-        np.random.seed(seed)
-
         yt_train = np.concatenate([y_train, t_train], 1)
 
-        model_dragonnet.compile(optimizer=Adam(lr=1e-3), loss=loss, metrics=metrics)
+        model_dragonnet.compile(optimizer=Adam(learning_rate=1e-3), loss=loss, metrics=metrics)
 
         adam_callbacks = [TerminateOnNaN(),
                           EarlyStopping(monitor='val_loss', patience=2, min_delta=0.),
@@ -177,20 +175,20 @@ class dragonnet:
                             callbacks=adam_callbacks,
                             validation_split=val_split,
                             epochs=epochs_adam,
-                            batch_size=batch_size, verbose=verbose)
+                            batch_size=batch_size, verbose=0)
 
         sgd_callbacks = [TerminateOnNaN(),
                          EarlyStopping(monitor='val_loss', patience=40, min_delta=0.),
-                         ReduceLROnPlateau(monitor='loss', factor=0.5, patience=5, verbose=verbose, mode='auto',
+                         ReduceLROnPlateau(monitor='loss', factor=0.5, patience=5, verbose=0, mode='auto',
                                            min_delta=0., cooldown=0, min_lr=0)
                          ]
 
-        model_dragonnet.compile(optimizer=SGD(lr=1e-5, momentum=0.9, nesterov=True), loss=loss, metrics=metrics)
+        model_dragonnet.compile(optimizer=SGD(learning_rate=1e-5, momentum=0.9, nesterov=True), loss=loss, metrics=metrics)
         model_dragonnet.fit(x_train, yt_train,
                             callbacks=sgd_callbacks,
                             validation_split=val_split,
                             epochs=epochs_sgd,
-                            batch_size=batch_size, verbose=verbose)
+                            batch_size=batch_size, verbose=0)
 
         yt_hat_test = model_dragonnet.predict(x_test)
         yt_hat_train = model_dragonnet.predict(x_train)
@@ -237,7 +235,7 @@ class dragonnet:
 
             q_t0, q_t1, g, t, y_dragon, x, eps = self.split_output(yt_hat, t, y, self.y_scaler, X)
 
-            psi_n, psi_tmle, initial_loss, final_loss, g_loss = self.get_estimate(q_t0, q_t1, g, t, y_dragon,
+            psi_n, psi_tmle, initial_loss, final_loss, g_loss = get_estimate(q_t0, q_t1, g, t, y_dragon,
                                                                                   truncate_level=0.01)
             simple_ate.append(psi_n)
             tmle_ate.append(psi_tmle)
@@ -280,12 +278,12 @@ def get_estimate(q_t0, q_t1, g, t, y_dragon, truncate_level=0.01):
 
     Parameters
     ----------
-    q_t0
-    q_t1
-    g
-    t
-    y_dragon
-    truncate_level
+    q_t0: predicted outcome if control group
+    q_t1: predicted outcome if treted group
+    g: predicted treatment given X
+    t: observed treatment
+    y_dragon: observed treatment
+    truncate_level:
 
     Returns
     -------

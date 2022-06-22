@@ -10,11 +10,11 @@ import yaml
 from sklearn.model_selection import train_test_split
 
 # Local Imports
-import resources.dragonnet
+from CompBioAndSimulated_Datasets.simulated_data_multicause import *
 import model_m3e2 as m3e2
 from resources.cevae import CEVAE as CEVAE
-from CompBioAndSimulated_Datasets.simulated_data_multicause import *
 from resources.deconfounder import deconfounder_algorithm as DA
+from resources.dragonnet import dragonnet
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +32,10 @@ def main(config_path, seed_models, seed_data, path_save_model=''):
     # # Fix Torch graph-level seed for reproducibility
     # torch.manual_seed(seed_models)
 
-    if params['type_treatment'] != 'binary':
-        params['pos_weight_t'] = params['pos_weights']
-    else:
+    if params['is_binary_treatment']:
         params['pos_weight_t'] = np.repeat(1, params['n_treatments'])
+    else:
+        params['pos_weight_t'] = params['pos_weights']
 
     params['baselines'] = params.get('baselines', False)
     if 'gwas' in params['data']:
@@ -236,11 +236,11 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, timeit=T
 
     if 'DA' in BaselinesList:
         # Fix numpy seed for reproducibility
-        np.random.seed(seed_models)
+        np.random.seed(seed)
         # Fix random seed for reproducibility
-        random.seed(seed_models)
+        random.seed(seed)
         # Fix Torch graph-level seed for reproducibility
-        torch.manual_seed(seed_models)
+        torch.manual_seed(seed)
         start_time = time.time()
         print('...Running DA')
         ParamsList['da_k'] = ParamsList.get('da_k', 15)  # if exploring multiple latent sizes
@@ -258,14 +258,14 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, timeit=T
 
     if 'Dragonnet' in BaselinesList:
         # Fix numpy seed for reproducibility
-        np.random.seed(seed_models)
+        np.random.seed(seed)
         # Fix random seed for reproducibility
-        random.seed(seed_models)
+        random.seed(seed)
         # Fix Torch graph-level seed for reproducibility
-        torch.manual_seed(seed_models)
+        torch.manual_seed(seed)
         start_time = time.time()
         print('...Running Dragonnet')
-        model_dragon = dragonnet.dragonnet(X_train=X_train01,
+        model_dragon = dragonnet(X_train=X_train01,
                                            X_test=X_test01,
                                            y_train=y_train,
                                            y_test=y_test,
@@ -285,11 +285,11 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, timeit=T
 
     if 'CEVAE' in BaselinesList:
         # Fix numpy seed for reproducibility
-        np.random.seed(seed_models)
+        np.random.seed(seed)
         # Fix random seed for reproducibility
-        random.seed(seed_models)
+        random.seed(seed)
         # Fix Torch graph-level seed for reproducibility
-        torch.manual_seed(seed_models)
+        torch.manual_seed(seed)
         start_time = time.time()
         print('...Running CEVAE')
         logger.debug('Note: Treatments should be the first columns of X')

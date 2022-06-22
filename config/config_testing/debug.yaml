@@ -1,6 +1,6 @@
 #Parameters
 parameters:
-    data: ['gwas'] #gwas, copula
+    data: ['gwas','copula','ihdp'] #gwas, copula
     n_sample: 2000
     n_covariates: 995
     n_treatments: 5
