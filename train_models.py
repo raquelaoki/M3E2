@@ -6,6 +6,7 @@ import sys
 import time
 import torch
 import yaml
+import warnings
 
 from sklearn.model_selection import train_test_split
 
@@ -17,7 +18,7 @@ from resources.deconfounder import deconfounder_algorithm as DA
 from resources.dragonnet import dragonnet
 
 logger = logging.getLogger(__name__)
-
+warnings.filterwarnings('ignore')
 
 def main(config_path, seed_models, seed_data, path_save_model=''):
     """Start: Parameters Loading"""
@@ -39,6 +40,7 @@ def main(config_path, seed_models, seed_data, path_save_model=''):
 
     params['baselines'] = params.get('baselines', False)
     if 'gwas' in params['data']:
+        logger.debug('Loading GWAS')
         # params = {'DA': {'k': [15]},
         #             'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 10, 'binarytarget': True},
         #             'Dragonnet': {'u1': 200, 'u2': 100, 'u3': 1},
@@ -81,6 +83,8 @@ def main(config_path, seed_models, seed_data, path_save_model=''):
                                  Xhigh_cols=Xhigh_cols,
                                  results=results)
     elif 'copula' in params['data']:
+        logger.debug('Loading copula')
+
         # params = {'DA': {'k': [5]},
         #             'CEVAE': {'num_epochs': 100, 'batch': 200, 'z_dim': 5, 'binarytarget': True},
         #             'Dragonnet': {'u1': 10, 'u2': 5, 'u3': 1},
@@ -116,6 +120,7 @@ def main(config_path, seed_models, seed_data, path_save_model=''):
                                  Xhigh_cols=Xhigh_cols,
                                  results=results)
     elif 'ihdp' in params['data']:
+        logger.debug('Loading ihdp')
         sdata_ihdp = ihdp_data(id=seed_data)
         X, y, treatement_columns, true_effect = sdata_ihdp.generate_samples()
 
@@ -147,9 +152,7 @@ def main(config_path, seed_models, seed_data, path_save_model=''):
                                  Xlow_cols=Xlow_cols,
                                  Xhigh_cols=Xhigh_cols,
                                  results=results)
-
-    if 'gwas' not in params['data'] and 'copula' not in params['data'] and 'ihdp' not in params[
-        'data'] and 'bcch' not in params['data']:
+    else:
         logger.debug(
             "ERRROR! \nDataset not recognized. \nChange the parameter data in your config.yaml file to gwas or copula.")
 
@@ -164,7 +167,7 @@ def proposed_method(X, y, ParamsList, seed, results,
                     TreatCols=None, true_effect=None,
                     Xlow_cols=None, Xhigh_cols=None):
     start_time = time.time()
-    print('...Running M3E2')
+    logger.debug('...Running M3E2')
     # Fix numpy seed for reproducibility
     np.random.seed(seed)
     # Fix random seed for reproducibility
@@ -172,7 +175,7 @@ def proposed_method(X, y, ParamsList, seed, results,
     # Fix Torch graph-level seed for reproducibility
     torch.manual_seed(seed)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=seed_models)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=seed)
 
     data_nnl = m3e2.data_nn(X_train=X_train.values,
                             X_test=X_test.values,
@@ -187,7 +190,7 @@ def proposed_method(X, y, ParamsList, seed, results,
                                                                           seed=seed)
     ParamsList['hidden1'] = ParamsList.get('hidden1', 6)
     ParamsList['hidden2'] = ParamsList.get('hidden2', 6)
-    params['pos_weight_y'] = params.get('pos_weight_y', 1)
+    ParamsList['pos_weight_y'] = ParamsList.get('pos_weight_y', 1)
     ParamsList['pos_weights'] = np.repeat(ParamsList['pos_weights'], len(TreatCols))
     ate_m3e2, score_ = m3e2.fit_nn(loader_train=loader_train,
                                    loader_val=loader_val,
@@ -242,7 +245,7 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, timeit=T
         # Fix Torch graph-level seed for reproducibility
         torch.manual_seed(seed)
         start_time = time.time()
-        print('...Running DA')
+        logger.debug('...Running DA')
         ParamsList['da_k'] = ParamsList.get('da_k', 15)  # if exploring multiple latent sizes
         for k in ParamsList['da_k']:
             if len(ParamsList['da_k']) > 1:
@@ -264,7 +267,7 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, timeit=T
         # Fix Torch graph-level seed for reproducibility
         torch.manual_seed(seed)
         start_time = time.time()
-        print('...Running Dragonnet')
+        logger.debug('...Running Dragonnet')
         model_dragon = dragonnet(X_train=X_train01,
                                            X_test=X_test01,
                                            y_train=y_train,
@@ -291,7 +294,7 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, timeit=T
         # Fix Torch graph-level seed for reproducibility
         torch.manual_seed(seed)
         start_time = time.time()
-        print('...Running CEVAE')
+        logger.debug('...Running CEVAE')
         logger.debug('Note: Treatments should be the first columns of X')
         ParamsList['CEVAE_z_dim'] = ParamsList.get('CEVAE_z_dim', 5)
 
@@ -323,9 +326,6 @@ def baselines(BaselinesList, X, y, ParamsList, seed=63, TreatCols=None, timeit=T
     if 'noise' in BaselinesList:
         results_table['noise'] = np.repeat(0, len(treatement_columns))
         score['noise'] = np.repeat(0, len(treatement_columns))
-
-    else:
-        raise NotImplementedError('This method is not supported!')
 
     if not timeit:
         return results_table
@@ -386,11 +386,11 @@ if __name__ == "__main__":
     start_time = time.time()
     if notebook:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print("Cuda Availble:", torch.cuda.is_available(), " device: ", device)
+        logger.debug("Cuda Availble:", torch.cuda.is_available(), " device: ", device)
         for j in range(arg['seed_data']):
-            print('Data', j)
+            logger.debug('Data', j)
             for i in range(arg['seed_models']):
-                print('Models', i)
+                logger.debug('Models', i)
                 if i == 0 and j == 0:
                     output, name = main(config_path=arg['config_path'], seed_models=i, seed_data=j)
                 else:
@@ -399,12 +399,12 @@ if __name__ == "__main__":
         output_path = arg['path']
     else:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print("Cuda Availble:", torch.cuda.is_available(), " device: ", device)
+        logger.debug("Cuda Availble:", torch.cuda.is_available(), " device: ", device)
         for j in range(int(sys.argv[3])):
-            print('Data', j)
+            logger.debug('Data', j)
             output = pd.DataFrame()
             for i in range(int(sys.argv[2])):
-                print('Models', i)
+                logger.debug('Models', i)
                 #if i == 0 and j == 0:
                 #    output, name = main(config_path=sys.argv[1], seed_models=i, seed_data=j)
                 #else:
@@ -416,4 +416,4 @@ if __name__ == "__main__":
     end_time = time.time() - start_time
     end_time_m = end_time / 60
     end_time_h = end_time_m / 60
-    print("Time ------ {} min / {} hours ------".format(end_time_m, end_time_h))
+    logger.debug("Time ------ {} min / {} hours ------".format(end_time_m, end_time_h))

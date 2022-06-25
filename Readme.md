@@ -30,6 +30,12 @@ multi-treatment setting.
 
 ## Running Experiments
 
+```shell
+!python train_models.py config/config_testing/debug.yaml 1 1
+
+```
+
+
 2. To run locally or on Colab, please check TODO.
 
 ## Note: 
