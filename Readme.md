@@ -1,7 +1,7 @@
 # M3E2: Multi-gate Mixture-of-experts for Multi-treatment Effect Estimation
 
 Author: Raquel Aoki
-Date: 2022/06/21
+Date: 2022/07/28
 
 M3E2 is an estimator for multiple treatments. Hence, instead of a single treetment T, there is a set of treatments 
 $\mathcal{T} = \{T_0, T_1,...,T_K\}$.  
@@ -35,8 +35,7 @@ multi-treatment setting.
 ```
 ## Instructions
 To train the models, we use the file [train_models.py](train_models.py), which takes three parameters: 
-the config files in \textit{yaml} format,
-the number of dataset replications, and the number of model replications. 
+the config files in _yaml_ format, the number of dataset replications, and the number of model replications. 
 
 The folder [config](config/.) contains all the config files adopted by our experiments,
 which contain dataset generation parameters, such as dataset name, sample size, covariates size, and the number of treatments. 
@@ -46,11 +45,18 @@ are also used as seeds. For example, if the number of dataset replications is 4,
 to generate each dataset. 
 
 For our proposed method, M3E2, the user needs to define the following hyperparameters:
-* (Required) Number of experts ($num\_exp$): the ideal number depends on the complexity of the treatments and outcome. The current implementation requires the user to test different sizes manually. Most applications active the best results with 4 to 12 experts.
-* $expert$: Define the architecture of the experts. The user can pass a $torch.nn.Module$ as an expert. The default option has one linear layer with 4 units. The number of units of the default option can also be changed with the parameter $units\_exp$.
-* $X_{low}$ and $X_{high}$: Default option is $X_{high}=X$ and $X_{low}=\{\} $. The default factor model is an autoencoder with two layers of size $hidden1$ (default 64) and $hidden2$ (default 8). 
-* $type\_treatment$ and $type\_target$: the implemented options are \textit{binary} and \textit{continuous}. These values define the type of loss function. We assume all treatments have the same type (all binary or all continuous); therefore, only one value needs to be defined.
- * $loss\_target$,$loss\_da$, $loss\_treat$, $loss\_reg$: losses weights for the target/outcome, autoencoder, treatments, and regularization, respectively. The default value is 1. 
+* (Required) Number of experts (_num_exp_): the ideal number depends on the complexity of the treatments and outcome. 
+The current implementation requires the user to test different sizes manually. 
+Most applications active the best results with 4 to 12 experts.
+* $expert$: Define the architecture of the experts. The user can pass a $torch.nn.Module$ as an expert. 
+The default option has one linear layer with 4 units. The number of units of the default option can also be changed 
+with the parameter _units_exp_.
+* $X_{low}$ and $X_{high}$: Default option is $X_{high}=X$ and $X_{low}=${}. The default factor model is an autoencoder 
+with two layers of size $hidden1$ (default 64) and $hidden2$ (default 8). 
+* _$type_treatment_ and _type_target_: the implemented options are _binary_ and _continuous_. These values define the 
+type of loss function. We assume all treatments have the same type (all binary or all continuous); therefore, 
+only one value needs to be defined.
+* _loss_target,loss_da, loss_treat, loss_reg_: losses weights for the target/outcome, autoencoder, treatments, and regularization, respectively. The default value is 1. 
 
 
 As previously mentioned, the user must also define optimization parameters as any other neural network
