@@ -1,7 +1,12 @@
 # M3E2: Multi-gate Mixture-of-experts for Multi-treatment Effect Estimation
 
-Author: Raquel Aoki
-Date: 2022/07/28
+This repository is the Supplemental Material of the following publication:
+
+_Aoki, R., Chen, Y., Ester, M.. "M3E2: Multi-gate Mixture-of-experts for Multi-treatment Effect Estimation", Pacific Symposium on Biocomputing, 2023, World Scientific Publishing Co., Singapore._ 
+
+
+
+### Introduction
 
 M3E2 is an estimator for multiple treatments. Hence, instead of a single treetment T, there is a set of treatments 
 $\mathcal{T} = \{T_0, T_1,...,T_K\}$.  
